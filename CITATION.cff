@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use Conjoint Companion Desktop, please cite the associated article."
+title: "Conjoint Companion Desktop"
+type: software
+authors:
+  - family-names: "Schüler"
+    given-names: "Jens"
+repository-code: "https://github.com/drdiscipulus/conjoint_desktop_app"
+url: "https://shiny.drdiscipulus.de/conjoint_app/"
+license: "GPL-3.0-only"
+version: "0.1.0"
+preferred-citation:
+  type: article
+  title: "Test-Retest Reliability in Metric Conjoint Experiments: A New Workflow to Evaluate Confidence in Model Results"
+  authors:
+    - family-names: "Schüler"
+      given-names: "Jens"
+    - family-names: "Anderson"
+      given-names: "Brian S."
+    - family-names: "Murnieks"
+      given-names: "Charles Y."
+    - family-names: "Baum"
+      given-names: "Matthias"
+    - family-names: "Küsshauer"
+      given-names: "Alexander"
+  journal: "Entrepreneurship Theory and Practice"
+  volume: 48
+  issue: 2
+  start: 742
+  end: 757
+  year: 2024
+  doi: "10.1177/10422587231184071"
+  url: "https://journals.sagepub.com/doi/abs/10.1177/10422587231184071"

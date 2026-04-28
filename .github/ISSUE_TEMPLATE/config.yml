@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Latest releases
+    url: https://github.com/drdiscipulus/conjoint_desktop_app/releases/latest
+    about: Download the latest Windows and macOS portable builds.
+  - name: Web version
+    url: https://shiny.drdiscipulus.de/conjoint_app/
+    about: Open the hosted Shiny version of the companion app.

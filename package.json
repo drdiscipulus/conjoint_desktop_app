@@ -1,7 +1,14 @@
 {
   "name": "conjoint-companion-desktop",
   "private": true,
+  "description": "Offline desktop companion app for test-retest reliability workflows in metric conjoint experiments.",
   "version": "0.1.0",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/drdiscipulus/conjoint_desktop_app.git"
+  },
+  "homepage": "https://shiny.drdiscipulus.de/conjoint_app/",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 1420",

@@ -1,154 +1,112 @@
-# Conjoint Companion — Desktop Edition
+# Conjoint Companion Desktop
 
-A desktop application for conjoint analysis research. This is the offline companion to the [web version](https://shiny.drdiscipulus.de/conjoint_app/) and implements the methodology described in:
+Conjoint Companion Desktop is the offline, portable version of the Shiny companion app for:
 
-> **Developing a Test-Retest Reliability Coefficient for Metric Conjoint Analysis**  
-> [Published in Organizational Research Methods (2023)](https://journals.sagepub.com/doi/abs/10.1177/10422587231184071)
+> Schueler, J., Anderson, B. S., Murnieks, C. Y., Baum, M., & Kuesshauer, A. (2024). Test-Retest Reliability in Metric Conjoint Experiments: A New Workflow to Evaluate Confidence in Model Results. *Entrepreneurship Theory and Practice, 48*(2), 742-757. https://doi.org/10.1177/10422587231184071
 
-## Overview
+The desktop app bundles the Shiny interface, an R runtime, and the required R packages so researchers can run the companion app locally without installing R or sending data to a server.
 
-**Conjoint Companion** is a self-contained desktop application that bundles an R Shiny web interface with a complete R runtime. No installation of R, Python, or other dependencies is required—download and run.
+## Download
 
-This application is designed for researchers conducting conjoint studies and those needing to evaluate the reliability of their conjoint model results.
+Download the latest portable build from the [GitHub Releases page](https://github.com/drdiscipulus/conjoint_desktop_app/releases/latest).
 
-## Features
+Expected release assets:
 
-### 1. **Factorial Design Generator**
+- Windows x64: `Conjoint-Companion-vX.Y.Z-windows-x64.zip`
+- macOS Apple Silicon: `Conjoint-Companion-vX.Y.Z-macos-arm64.tar.gz`
+- Checksums: `SHA256SUMS.txt`
 
-- Create full and fractional factorial designs for conjoint experiments
-- Customize design parameters for your research needs
-- Export designs for use in your studies
+Windows and macOS builds should be treated as release-ready only after they have been smoke-tested on their native platform.
 
-### 2. **Test-Retest Reliability Analysis**
+## What The App Does
 
-- Upload your reliability study data (CSV or Excel format)
-- Analyze the reliability of metric conjoint models
-- Automatic processing and statistical evaluation
-- Export results in multiple formats (XLSX, CSV, visualizations)
+- Generate full and fractional factorial designs for conjoint experiments.
+- Run the test-retest reliability workflow described in the article.
+- Export generated designs, result tables, and report-ready output files.
+- Run entirely offline after download.
 
-### 3. **Fully Offline**
+The web version remains available at https://shiny.drdiscipulus.de/conjoint_app/.
 
-- All processing happens locally on your computer
-- No internet connection required after installation
-- All data remains on your machine
-- Session-based temporary files are automatically cleaned up
+## Install And Run
 
-## Installation
+### Windows
 
-### System Requirements
+1. Download the Windows ZIP file from the latest release.
+2. Extract the ZIP file completely.
+3. Run `conjoint_companion_desktop.exe`.
 
-- **Windows 10+** (x64) or **macOS 11+** (Apple Silicon or Intel)
-- **Disk space:** ~500 MB
-- **RAM:** 2 GB minimum (4 GB recommended)
+Do not run the executable from inside the ZIP preview window; extract it first.
 
-### Download & Run
+### macOS
 
-1. Download the latest release for your platform:
-   - **Windows:** `Conjoint Companion-win-x64.zip` → Extract and run `Conjoint Companion.exe`
-   - **macOS:** `Conjoint Companion.app.tar.gz` → Extract and drag to Applications, then run
+1. Download the macOS archive from the latest release.
+2. Extract the archive.
+3. Move the app to `Applications` if desired.
+4. Open the app.
 
-2. Launch the application—no installation wizard, no system modifications
-
-3. Read the in-app help and tutorial to get started
+If macOS shows a first-run security warning for an unsigned app, right-click the app and choose `Open`.
 
 ## Quick Start
 
 ### Factorial Design Generator
 
-1. Open the application and navigate to **Design Generator**
-2. Select your design parameters (factors, levels, type of design)
-3. Click **Generate** and review the design
-4. Download the design as CSV or Excel
+1. Open the app and go to the design generator.
+2. Choose the number of factors, levels, and design type.
+3. Generate the design.
+4. Download the design as CSV or Excel.
 
 ### Reliability Analysis
 
-1. Prepare your data in CSV or Excel format with columns:
-   - `respondent`: Participant ID
-   - `round`: Test (1) or retest (2) administration
-   - `profile`: Profile ID within the conjoint study
-   - `dv`: Dependent variable (conjoint preference rating)
-   - `att_*`: Attribute columns (attribute values for the profile)
+Upload a CSV or Excel file with these columns:
 
-2. Open the application and navigate to **Reliability Analysis**
-3. Upload your data file
-4. View analysis results and download the report
+- `respondent`: participant identifier
+- `round`: test/retest round, using rounds `1` and `2`
+- `profile`: profile identifier within the conjoint design
+- `dv`: dependent variable or conjoint preference rating
+- `att_*`: two or more attribute columns
 
-**Demo data:** Sample files are available in the application for testing
+The app validates the upload, runs the reliability workflow, and offers downloadable result tables. Demo data are included in the app.
 
-## Data Privacy & Security
+## Privacy
 
-- **Local processing:** All uploaded data is processed on your computer only
-- **Session-based storage:** Data is stored in temporary directories that are automatically deleted when you close the application
-- **No tracking:** The application does not collect usage data or contact external servers
-- **Offline operation:** Internet connection is never required for analysis
+The desktop app is designed for offline use.
 
-## System Architecture
+- Uploaded data are processed locally on your computer.
+- No analysis data are sent to the web server or to GitHub.
+- Temporary session files are cleaned up when the app closes.
+- Only files you explicitly download are saved.
 
-This is a **Tauri desktop application** combining:
+## Project Status And Support
 
-- **Tauri 2** framework (Rust backend, web frontend)
-- **R Shiny** web interface for interactive analysis
-- **R 4.5.3** runtime (bundled)
-- **renv** for R package management
+This repository is publication companion software. It is maintained occasionally, mainly for documentation updates, reproducible bugs, installation problems, and compatibility fixes.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for technical details.
+Questions are welcome through GitHub issues, but responses are best effort and the repository is not actively monitored as a support channel.
 
-## Troubleshooting
+## For Maintainers
 
-### App won't start
+- Architecture overview: [ARCHITECTURE.md](ARCHITECTURE.md)
+- Release checklist: [docs/RELEASING.md](docs/RELEASING.md)
+- Maintenance notes: [docs/MAINTENANCE.md](docs/MAINTENANCE.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
 
-- **Windows:** Ensure you have extracted the ZIP file completely. Windows sometimes has issues running apps from within ZIP archives.
-- **macOS:** If you see a security warning, right-click the app and select "Open" to bypass it on first launch.
+Common commands:
 
-### Data upload fails
+```sh
+npm ci
+npm run check:shiny
+npm run release:portable
+```
 
-- Check that your CSV/Excel file has the required columns: `respondent`, `round`, `profile`, `dv`, and attribute columns (`att_*`)
-- Ensure column names exactly match (case-sensitive)
-- Max file size: 50 MB
+The release script expects a native build environment for the target platform and a staged R runtime.
 
-### Performance issues
+## Citation
 
-- Close other applications to free up memory
-- Ensure you have at least 2 GB of available RAM
-- Restart the application
+If you use this app in research or teaching, please cite the article:
 
-### More help
+Schueler, J., Anderson, B. S., Murnieks, C. Y., Baum, M., & Kuesshauer, A. (2024). Test-Retest Reliability in Metric Conjoint Experiments: A New Workflow to Evaluate Confidence in Model Results. *Entrepreneurship Theory and Practice, 48*(2), 742-757. https://doi.org/10.1177/10422587231184071
 
-- See the **Help** section within the application
-- Review the tutorial and demo data
-- Check the published paper for methodology details
-
-## Related Resources
-
-- **Web version:** [https://shiny.drdiscipulus.de/conjoint_app/](https://shiny.drdiscipulus.de/conjoint_app/)
-- **Published paper:** [https://journals.sagepub.com/doi/abs/10.1177/10422587231184071](https://journals.sagepub.com/doi/abs/10.1177/10422587231184071)
-- **Source code:** This GitHub repository
+Machine-readable citation metadata are available in [CITATION.cff](CITATION.cff).
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0** (GPL-3.0).  
-See [LICENSE](LICENSE) for details.
-
-## FAQ
-
-**Q: Is this the same as the web version?**  
-A: It's the same analysis tools with the same methodology, but the desktop version runs entirely offline without needing any server.
-
-**Q: Can I use my data from the web version in the desktop version?**  
-A: Yes—data formats are identical. Export from the web version and upload to the desktop version.
-
-**Q: Do I need to install R?**  
-A: No. R is bundled with the desktop application.
-
-**Q: What happens to my data when I close the app?**  
-A: All temporary data is automatically deleted. Only files you explicitly download are saved.
-
-**Q: Can I run this on Linux?**  
-A: Not currently. The desktop app is available for Windows and macOS only.
-
-**Q: Is this open source?**  
-A: Yes, the source code is available under GPL-3.0. See the GitHub repository.
-
----
-
-**Questions or issues?** Open an issue on GitHub or review the in-app Help section.
+This project is licensed under the GNU General Public License v3.0 only. See [LICENSE](LICENSE).

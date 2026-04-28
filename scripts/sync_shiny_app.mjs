@@ -7,9 +7,11 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const defaultSourceRoot = path.resolve(repoRoot, "..", "conjoint_app");
 const sourceRoot = path.resolve(process.env.CONJOINT_SHINY_SOURCE || defaultSourceRoot);
+const resourcesRoot = path.join(repoRoot, "src-tauri", "resources");
 const destinationRoot = path.join(repoRoot, "src-tauri", "resources", "shiny-app");
 const preservedRelativePaths = [
   ".Rprofile",
+  "README.md",
   "renv.lock",
   path.join("renv", "activate.R"),
   path.join("renv", "settings.json")

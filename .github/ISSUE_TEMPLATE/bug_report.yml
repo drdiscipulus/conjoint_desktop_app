@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a reproducible problem with the desktop app.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. This repository is maintained occasionally, so responses are best effort.
+        Please do not attach sensitive research data.
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Use the GitHub Release version or the archive filename.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps needed to trigger the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Minimal example
+      description: If the issue involves uploaded data, describe or attach a small anonymized file.
+    validations:
+      required: false

@@ -1,0 +1,42 @@
+name: Installation problem
+description: Report trouble downloading, extracting, or launching the portable desktop app.
+title: "[Install]: "
+labels:
+  - installation
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for problems with releases, archives, security prompts, or first launch.
+        Responses are best effort; the repository is not actively monitored.
+  - type: input
+    id: asset
+    attributes:
+      label: Downloaded asset
+      placeholder: "Conjoint-Companion-v0.1.0-windows-x64.zip"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include any warning or error text you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: For Windows, mention whether you extracted the ZIP first. For macOS, mention any security prompt.
+    validations:
+      required: false

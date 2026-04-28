@@ -1,0 +1,24 @@
+name: Question or contact
+description: Ask a best-effort question about the companion app or publication workflow.
+title: "[Question]: "
+labels:
+  - question
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Questions are welcome, but this repository is not actively monitored as a support channel.
+        Please keep questions focused on the companion app or the published workflow.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Add operating system, app version, or research workflow context if relevant.
+    validations:
+      required: false
