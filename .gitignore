@@ -1,0 +1,8 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/resources/runtime/
+src-tauri/resources/shiny-app/renv/library/
+src-tauri/resources/shiny-app/renv/staging/
+release-artifacts/
+*.log

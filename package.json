@@ -1,0 +1,21 @@
+{
+  "name": "conjoint-companion-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420",
+    "build": "vite build",
+    "prepare:shiny": "node scripts/sync_shiny_app.mjs",
+    "prepare:runtime": "npm run prepare:shiny && node scripts/stage_r_runtime.mjs",
+    "tauri:dev": "npm run prepare:shiny && tauri dev",
+    "tauri:build": "npm run prepare:runtime && tauri build --no-bundle",
+    "export:portable": "node scripts/export_portable.mjs",
+    "release:portable": "npm run tauri:build && npm run export:portable",
+    "check:shiny": "Rscript src-tauri/resources/shiny-app/scripts/check_app.R"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.10.1",
+    "vite": "^5.4.8"
+  }
+}
