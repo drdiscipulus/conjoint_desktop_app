@@ -78,26 +78,9 @@ The desktop app is designed for offline use.
 
 ## Project Status And Support
 
-This repository is publication companion software. It is maintained occasionally, mainly for documentation updates, reproducible bugs, installation problems, and compatibility fixes.
+This repository is publication companion software provided as is. The app is not actively maintained as an ongoing software project, but it may receive occasional updates when I choose to make them.
 
-Questions are welcome through GitHub issues, but responses are best effort and the repository is not actively monitored as a support channel.
-
-## For Maintainers
-
-- Architecture overview: [ARCHITECTURE.md](ARCHITECTURE.md)
-- Release checklist: [docs/RELEASING.md](docs/RELEASING.md)
-- Maintenance notes: [docs/MAINTENANCE.md](docs/MAINTENANCE.md)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
-
-Common commands:
-
-```sh
-npm ci
-npm run check:shiny
-npm run release:portable
-```
-
-The release script expects a native build environment for the target platform and a staged R runtime.
+Researchers may use GitHub issues for reproducible bugs, installation problems, or occasional questions. Responses are best effort, and the repository is not actively monitored as a support channel.
 
 ## Citation
 

@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a problem. This repository is maintained occasionally, so responses are best effort.
+        Thanks for taking the time to report a problem. This app is provided as-is, so responses are best effort.
         Please do not attach sensitive research data.
   - type: input
     id: version
