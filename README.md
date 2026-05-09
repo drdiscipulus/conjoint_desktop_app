@@ -13,7 +13,7 @@ Download the latest portable build from the [GitHub Releases page](https://githu
 Expected release assets:
 
 - Windows x64: `Conjoint-Companion-vX.Y.Z-windows-x64.zip`
-- macOS Apple Silicon: `Conjoint-Companion-vX.Y.Z-macos-arm64.tar.gz`
+- macOS Apple Silicon: `Conjoint-Companion-vX.Y.Z-macos-arm64.zip`
 - Checksums: `SHA256SUMS.txt`
 
 Windows and macOS builds should be treated as release-ready only after they have been smoke-tested on their native platform.
@@ -43,8 +43,6 @@ Do not run the executable from inside the ZIP preview window; extract it first.
 2. Extract the archive.
 3. Move the app to `Applications` if desired.
 4. Open the app.
-
-If macOS shows a first-run security warning for an unsigned app, right-click the app and choose `Open`.
 
 ## Quick Start
 

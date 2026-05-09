@@ -8,12 +8,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const packageJson = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf-8"));
+const tauriConfig = JSON.parse(readFileSync(path.join(repoRoot, "src-tauri", "tauri.conf.json"), "utf-8"));
 const releaseRoot = path.join(repoRoot, "src-tauri", "target", "release");
 const artifactsRoot = path.join(repoRoot, "release-artifacts", process.platform, "portable");
 const stagingRoot = path.join(artifactsRoot, "staging");
 const executableName = process.platform === "win32"
   ? "conjoint_companion_desktop.exe"
   : "conjoint_companion_desktop";
+const productName = tauriConfig.productName || "Conjoint Companion";
 
 function platformLabel() {
   if (process.platform === "win32") {
@@ -86,14 +88,87 @@ function createTarGz(sourceDirectory, archivePath) {
   ], { stdio: "inherit" });
 }
 
-function main() {
+function createMacZip(sourceDirectory, archivePath) {
+  execFileSync("ditto", [
+    "-c",
+    "-k",
+    "--sequesterRsrc",
+    "--keepParent",
+    path.basename(sourceDirectory),
+    archivePath
+  ], {
+    cwd: path.dirname(sourceDirectory),
+    stdio: "inherit"
+  });
+}
+
+function verifyMacApp(appPath) {
+  if (process.env.CONJOINT_SKIP_MACOS_GATEKEEPER_CHECK === "1") {
+    console.warn("Skipping macOS Gatekeeper verification because CONJOINT_SKIP_MACOS_GATEKEEPER_CHECK=1.");
+    return;
+  }
+
+  execFileSync("codesign", [
+    "--verify",
+    "--deep",
+    "--strict",
+    "--verbose=2",
+    appPath
+  ], { stdio: "inherit" });
+  execFileSync("xcrun", [
+    "stapler",
+    "validate",
+    appPath
+  ], { stdio: "inherit" });
+  execFileSync("spctl", [
+    "--assess",
+    "--type",
+    "execute",
+    "--verbose=4",
+    appPath
+  ], { stdio: "inherit" });
+}
+
+function writeChecksum(archivePath, archiveName) {
+  const digest = sha256(archivePath);
+  writeFileSync(path.join(artifactsRoot, "SHA256SUMS.txt"), `${digest}  ${archiveName}\n`, "utf-8");
+}
+
+function exportMacPortable(artifactBaseName) {
+  const appBundle = path.join(releaseRoot, "bundle", "macos", `${productName}.app`);
+  if (!existsSync(appBundle)) {
+    throw new Error(`macOS app bundle not found at ${appBundle}. Run npm run tauri:build:macos first.`);
+  }
+
+  removeAndCreate(artifactsRoot);
+  const portableRoot = path.join(stagingRoot, artifactBaseName);
+  mkdirSync(portableRoot, { recursive: true });
+
+  const stagedApp = path.join(portableRoot, `${productName}.app`);
+  cpSync(appBundle, stagedApp, { recursive: true, force: true });
+  writeFileSync(path.join(portableRoot, ".conjoint_companion_portable"), "", "utf-8");
+
+  verifyMacApp(stagedApp);
+
+  const archiveName = `${artifactBaseName}.zip`;
+  const archivePath = path.join(artifactsRoot, archiveName);
+  createMacZip(portableRoot, archivePath);
+  writeChecksum(archivePath, archiveName);
+
+  const summary = summarize(portableRoot);
+  console.log(`Portable staging directory: ${portableRoot}`);
+  console.log(`Release archive: ${archivePath}`);
+  console.log(`Checksum file: ${path.join(artifactsRoot, "SHA256SUMS.txt")}`);
+  console.log(`Files: ${summary.fileCount}`);
+}
+
+function exportExecutablePortable(artifactBaseName) {
   const executablePath = path.join(releaseRoot, executableName);
   if (!existsSync(executablePath)) {
     throw new Error(`Release executable not found at ${executablePath}. Run npm run tauri:build first.`);
   }
 
   removeAndCreate(artifactsRoot);
-  const artifactBaseName = `Conjoint-Companion-v${packageJson.version}-${platformLabel()}`;
   const portableRoot = path.join(stagingRoot, artifactBaseName);
   mkdirSync(portableRoot, { recursive: true });
 
@@ -112,14 +187,22 @@ function main() {
     createTarGz(portableRoot, archivePath);
   }
 
-  const digest = sha256(archivePath);
-  writeFileSync(path.join(artifactsRoot, "SHA256SUMS.txt"), `${digest}  ${archiveName}\n`, "utf-8");
+  writeChecksum(archivePath, archiveName);
 
   const summary = summarize(portableRoot);
   console.log(`Portable staging directory: ${portableRoot}`);
   console.log(`Release archive: ${archivePath}`);
   console.log(`Checksum file: ${path.join(artifactsRoot, "SHA256SUMS.txt")}`);
   console.log(`Files: ${summary.fileCount}`);
+}
+
+function main() {
+  const artifactBaseName = `Conjoint-Companion-v${packageJson.version}-${platformLabel()}`;
+  if (process.platform === "darwin") {
+    exportMacPortable(artifactBaseName);
+  } else {
+    exportExecutablePortable(artifactBaseName);
+  }
 }
 
 main();

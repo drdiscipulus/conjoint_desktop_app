@@ -36,7 +36,7 @@ References checked:
   - kill the R child process on app exit
 - Package portable artifacts only:
   - Windows: portable ZIP/folder containing the Tauri executable and bundled resources
-  - macOS arm64: zipped `.app` bundle with bundled R framework/resources
+  - macOS arm64: notarized zipped `.app` bundle with bundled R framework/resources
 - Updates are manual replacement of the portable package. No built-in updater in this first packaging plan.
 
 ## Build And Packaging Flow
@@ -47,7 +47,8 @@ References checked:
   - stage the platform R runtime and package library
   - export portable artifacts
 - Windows build uses native Windows with R 4.5.3 x64.
-- macOS build uses native Apple Silicon macOS with R 4.5.3 arm64.
+- macOS build uses native Apple Silicon macOS with R 4.5.3 arm64, a `Developer ID Application` certificate, and Apple notarization credentials.
+- macOS R package staging requires Homebrew build dependencies for native R packages: `pkg-config`, `gettext`, `openssl@3`, `harfbuzz`, `fribidi`, `gcc`, `libtiff`, `jpeg-turbo`, and `webp`.
 - Do not attempt cross-compiling R/runtime/package bundles between OSes.
 
 ## Test Plan

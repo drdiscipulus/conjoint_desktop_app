@@ -17,8 +17,13 @@
     "prepare:runtime": "npm run prepare:shiny && node scripts/stage_r_runtime.mjs",
     "tauri:dev": "npm run prepare:shiny && tauri dev",
     "tauri:build": "npm run prepare:runtime && tauri build --no-bundle",
+    "tauri:build:windows": "npm run prepare:runtime && tauri build --no-bundle",
+    "check:macos-notarization": "node scripts/check_macos_notarization_env.mjs",
+    "tauri:build:macos": "node scripts/release_macos_portable.mjs --build-only",
     "export:portable": "node scripts/export_portable.mjs",
-    "release:portable": "npm run tauri:build && npm run export:portable",
+    "release:portable": "node scripts/release_portable.mjs",
+    "release:portable:windows": "npm run tauri:build:windows && npm run export:portable",
+    "release:portable:macos": "node scripts/release_macos_portable.mjs",
     "check:shiny": "Rscript src-tauri/resources/shiny-app/scripts/check_app.R"
   },
   "devDependencies": {

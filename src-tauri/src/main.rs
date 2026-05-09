@@ -314,11 +314,15 @@ fn resolve_resource_layout(app: &tauri::AppHandle) -> Result<ResourceLayout, Str
     let dev_root = manifest_dir.join("resources");
     let bundled_root = app.path().resource_dir().ok();
 
-    let root = if dev_root.join("desktop").join("run_shiny.R").is_file() {
-        dev_root
-    } else {
-        bundled_root.ok_or_else(|| "Could not resolve Tauri resource directory.".to_string())?
-    };
+    let mut root_candidates = vec![dev_root];
+    if let Some(bundled_root) = bundled_root {
+        root_candidates.push(bundled_root.join("resources"));
+        root_candidates.push(bundled_root);
+    }
+    let root = root_candidates
+        .into_iter()
+        .find(|candidate| candidate.join("desktop").join("run_shiny.R").is_file())
+        .ok_or_else(|| "Could not resolve bundled Shiny resources.".to_string())?;
 
     let shiny_app = root.join("shiny-app");
     let launch_script = root.join("desktop").join("run_shiny.R");

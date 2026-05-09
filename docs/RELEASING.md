@@ -8,9 +8,16 @@ Releases are manual and occasional. Build each platform on its native operating 
 - Rust toolchain compatible with Tauri 2
 - R 4.5.3 for the target platform
 - Platform build tools required by Tauri
+- For macOS: Xcode command line tools, a paid Apple Developer account, and a `Developer ID Application` certificate
 - A clean checkout of this repository
 
 The release process stages a platform-specific R runtime and R package library. Do not commit `src-tauri/resources/runtime`, `src-tauri/target`, `dist`, or `release-artifacts`.
+
+On macOS, install the native libraries needed to restore and sign the bundled R package library:
+
+```sh
+brew install pkg-config gettext openssl@3 harfbuzz fribidi gcc libtiff jpeg-turbo webp
+```
 
 ## Version Bump
 
@@ -31,8 +38,37 @@ From the repository root:
 ```sh
 npm ci
 npm run check:shiny
-npm run release:portable
 ```
+
+On Windows:
+
+```sh
+npm run release:portable:windows
+```
+
+On macOS, configure signing and notarization before building. The release scripts also load `.env.release.local` from the repository root. That file is ignored by git; use `.env.release.local.example` as a template.
+
+Use either App Store Connect API credentials:
+
+```sh
+export APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+export APPLE_API_ISSUER="..."
+export APPLE_API_KEY="..."
+export APPLE_API_KEY_PATH="/path/to/AuthKey_XXXXXXXXXX.p8"
+npm run release:portable:macos
+```
+
+Or Apple ID notarization credentials:
+
+```sh
+export APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+export APPLE_ID="you@example.com"
+export APPLE_PASSWORD="app-specific-password"
+export APPLE_TEAM_ID="TEAMID"
+npm run release:portable:macos
+```
+
+The macOS release script signs the app bundle and all embedded native R runtime/package binaries before submitting to Apple notarization. This is required because the portable app includes many `.dylib`, `.so`, and helper executable files inside the bundled R runtime.
 
 The portable export writes platform-specific files under:
 
@@ -43,7 +79,7 @@ release-artifacts/<platform>/portable/
 Expected release assets:
 
 - `Conjoint-Companion-vX.Y.Z-windows-x64.zip`
-- `Conjoint-Companion-vX.Y.Z-macos-arm64.tar.gz`
+- `Conjoint-Companion-vX.Y.Z-macos-arm64.zip`
 - `SHA256SUMS.txt`
 
 If both Windows and macOS are built separately, merge the checksum lines into one `SHA256SUMS.txt` before uploading the release assets.
