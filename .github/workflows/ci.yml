@@ -12,9 +12,9 @@ jobs:
   quality:
     name: ${{ matrix.os }} quality
     env:
-      # renv 1.2 installs with four parallel jobs by default. A serial restore
-      # avoids dependants being built before their compiled dependencies exist.
-      RENV_CONFIG_INSTALL_JOBS: 1
+      # Let pak resolve and install the lockfile dependency graph. This avoids
+      # source packages being built before their dependencies on clean runners.
+      RENV_CONFIG_PAK_ENABLED: true
     strategy:
       fail-fast: false
       matrix:
@@ -46,6 +46,8 @@ jobs:
           GETTEXT_PREFIX="$(brew --prefix gettext)"
           echo "CPPFLAGS=-I${GETTEXT_PREFIX}/include" >> "$GITHUB_ENV"
           echo "LDFLAGS=-L${GETTEXT_PREFIX}/lib" >> "$GITHUB_ENV"
+          echo "CPATH=${GETTEXT_PREFIX}/include" >> "$GITHUB_ENV"
+          echo "LIBRARY_PATH=${GETTEXT_PREFIX}/lib" >> "$GITHUB_ENV"
           echo "PKG_CONFIG_PATH=${GETTEXT_PREFIX}/lib/pkgconfig" >> "$GITHUB_ENV"
           echo "${GETTEXT_PREFIX}/bin" >> "$GITHUB_PATH"
 
