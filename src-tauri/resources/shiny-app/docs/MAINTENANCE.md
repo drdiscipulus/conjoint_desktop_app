@@ -50,6 +50,8 @@ N-level and mixed-level factorial designs:
 
 The statistical workflow should remain stable unless a test proves an existing bug. Key outputs are covered by regression fixtures in `tests/fixtures/`.
 
+`prepare_reliability_data()` is the common preparation boundary for every reliability result. It pairs observations explicitly by respondent and profile, retains only profiles represented in both rounds, and removes respondents who are incomplete within that common profile set from both rounds. Duplicate respondent/round/profile keys, inconsistent profile attributes, insufficient complete data, and non-computable profiles are validation errors.
+
 Result exports are intentionally server-generated from session data:
 
 - Excel workbook: reliability table, slope difference, pooled regression.

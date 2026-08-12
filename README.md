@@ -13,7 +13,7 @@ Download the latest portable build from the [GitHub Releases page](https://githu
 Expected release assets:
 
 - Windows x64: `Conjoint-Companion-vX.Y.Z-windows-x64.zip`
-- macOS Apple Silicon: `Conjoint-Companion-vX.Y.Z-macos-arm64.tar.gz`
+- macOS Apple Silicon: `Conjoint-Companion-vX.Y.Z-macos-arm64.zip`
 - Checksums: `SHA256SUMS.txt`
 
 Windows and macOS builds should be treated as release-ready only after they have been smoke-tested on their native platform.
@@ -44,7 +44,7 @@ Do not run the executable from inside the ZIP preview window; extract it first.
 3. Move the app to `Applications` if desired.
 4. Open the app.
 
-If macOS shows a first-run security warning for an unsigned app, right-click the app and choose `Open`.
+The macOS release is signed with an Apple Developer ID and notarized by Apple. Do not use a build that requires bypassing Gatekeeper.
 
 ## Quick Start
 
@@ -67,6 +67,8 @@ Upload a CSV or Excel file with these columns:
 
 The app validates the upload, runs the reliability workflow, and offers downloadable result tables. Demo data are included in the app.
 
+Reliability observations are paired explicitly by respondent and profile, so row order does not affect results. Profiles must occur in both rounds to be analyzed. Respondents missing any observation in that common profile set are excluded completely, and duplicate respondent/round/profile keys are rejected. The validation report shows these exclusions before analysis.
+
 ## Privacy
 
 The desktop app is designed for offline use.
@@ -74,7 +76,7 @@ The desktop app is designed for offline use.
 - Uploaded data are processed locally on your computer.
 - No analysis data are sent to the web server or to GitHub.
 - Temporary session files are cleaned up when the app closes.
-- Only files you explicitly download are saved.
+- Only files you explicitly download are saved, in your normal Downloads folder.
 
 ## Project Status And Support
 

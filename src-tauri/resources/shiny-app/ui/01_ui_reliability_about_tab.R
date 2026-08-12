@@ -20,6 +20,7 @@ tabPanel(
         tags$li("Keep selected files below 5 MB."),
         tags$li("Reliability datasets must contain no more than 25,000 rows."),
         tags$li("Use long-format data with one row per respondent, round, and profile observation."),
+        tags$li("Do not duplicate a respondent/round/profile combination."),
         tags$li("Use the bundled demo data if you want to inspect the required structure first.")
       ),
       tags$h4("Required Columns"),
@@ -41,6 +42,13 @@ tabPanel(
         " columns must be numeric or cleanly coercible to numeric. Missing values should be left empty or coded as ",
         tags$code("NA"),
         "."
+      ),
+      tags$h4("Pairing And Completeness"),
+      tags$ul(
+        tags$li("Observations are paired by respondent and profile; their row order does not matter."),
+        tags$li("Only profiles that occur in both rounds are analyzed. Profiles found in only one round are reported and excluded."),
+        tags$li("A respondent who is missing any observation within the common profile set is excluded completely from both rounds."),
+        tags$li("Validation requires at least two complete respondents and at least one computable common profile.")
       ),
       tags$h4("Workflow"),
       tags$ol(

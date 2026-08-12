@@ -2,7 +2,22 @@ node_modules/
 dist/
 src-tauri/target/
 src-tauri/resources/runtime/
+src-tauri/bundle-runtime/
 src-tauri/resources/shiny-app/renv/library/
 src-tauri/resources/shiny-app/renv/staging/
 release-artifacts/
 *.log
+Rplots.pdf
+
+# Local working notes and AI-assistant configuration
+.local-notes/
+.codex/
+.agents/
+.cursor/
+.claude/
+.copilot/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+copilot-instructions.md
+.github/instructions/

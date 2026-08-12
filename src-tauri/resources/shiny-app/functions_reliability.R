@@ -116,28 +116,13 @@ class_type_overview <- function(dat) {
 
 ## Pearson's R
 
-# This function takes a data set as an input, splits it into the initial and
-# replication responses, calculates the correlation for each profile, and
-# returns a correlation vector.
-rel_cor <- function(dat) {
-  # First round of responses
-  initial_dat <- dat |>
-    filter(round == 1) |>
-    select(respondent, profile, dv) |>
+# The input is an explicitly respondent-paired wide data set produced by
+# validate_reliability_dataset(). Returning the profile key prevents callers
+# from accidentally matching results by row position.
+rel_cor <- function(pairs) {
+  pairs |>
     group_by(profile) |>
-    group_split()
-  # Second round of responses
-  replication_dat <- dat |>
-    filter(round == 2) |>
-    select(respondent, profile, dv) |>
-    group_by(profile) |>
-    group_split()
-  # Map over all profiles and compute their correlations
-  cor <- map2(initial_dat, replication_dat, ~ cor(.x$dv, .y$dv))
-  # Collapse list to vector
-  cor <- unlist(cor)
-  # Return
-  return(cor)
+    summarise(r = cor(dv_round_1, dv_round_2), .groups = "drop")
 }
 
 
@@ -147,33 +132,20 @@ rel_cor <- function(dat) {
 # replication responses, calculates the ICC(3,k) for each profile by calling an
 # additional helper function, and returns a data frame with ICC(3,k) and its
 # 95% confidence interval.
-rel_icc <- function(dat) {
-  # First round of responses
-  initial_dat <- dat |>
-    filter(round == 1) |>
-    select(respondent, profile, dv) |>
+rel_icc <- function(pairs) {
+  pairs |>
     group_by(profile) |>
-    group_split()
-
-  # Second round of responses
-  replication_dat <- dat |>
-    filter(round == 2) |>
-    select(respondent, profile, dv) |>
-    group_by(profile) |>
-    group_split()
-  # Map over all profiles and compute the ICC(3,k)
-  res <- map2_dfr(initial_dat, replication_dat, ~ icc_3k(.x, .y))
-  # Return
-  return(res)
+    group_split(.keep = TRUE) |>
+    map_dfr(icc_3k)
 }
 
 
 # Function to compute the ICC(3,k)
-icc_3k <- function(initial, replication) {
+icc_3k <- function(pairs) {
   # Get all profile names/numbers
-  profile <- unique(initial$profile)
+  profile <- unique(pairs$profile)
   # Create temporary data set
-  tmp <- tibble(initial = initial$dv, replication = replication$dv)
+  tmp <- tibble(initial = pairs$dv_round_1, replication = pairs$dv_round_2)
   # Compute ICCs and extract ICC(3,k) and its 95% confidence interval
   icc <- ICC(tmp,
     missing = TRUE,
@@ -377,72 +349,15 @@ pooled_regression <- function(dat) {
 
 ### Response Deviations
 
-# This function takes a data set as an input, splits it into initial and
-# replication responses and computes, for each profile, the difference
-# between responses for each respondent.
-compute_deviation <- function(dat) {
-  # First round of responses
-  initial_dat <- dat |>
-    filter(round == 1) |>
-    select(respondent, profile, dv) |>
-    group_by(profile) |>
-    group_split()
-
-  # Second round of responses
-  replication_dat <- dat |>
-    filter(round == 2) |>
-    select(respondent, profile, dv) |>
-    group_by(profile) |>
-    group_split()
-
-  # Extract id
-  respondent <- map(initial_dat, ~ select(.x, respondent))
-  respondent <- map(respondent, ~ unlist(.x$respondent))
-  respondent <- tibble(respondent = respondent[[1]])
-
-  # Select the dv column
-  initial_tmp <- map(initial_dat, ~ select(.x, dv))
-
-  # Turn data frame into a numeric vector
-  initial_tmp <- map(initial_tmp, ~ unlist(.x$dv))
-
-  # Select the dv column
-  replication_tmp <- map(replication_dat, ~ select(.x, dv))
-
-  # Turn data frame into numeric vector
-  replication_tmp <- map(replication_tmp, ~ unlist(.x$dv))
-
-  # Subtract initial response from replication response
-  dev_dat <- map2(replication_tmp, initial_tmp, ~ .x - .y)
-
-  # Convert list to data frame
-  dev_dat <- as_tibble(do.call("cbind", dev_dat))
-
-  # loop over all columns and set names
-  for (i in seq_along(unique(dat$profile))) {
-    colnames(dev_dat)[i] <- paste0("profile_", i)
-  }
-
-  # Combine
-  dev_dat <- cbind(respondent, dev_dat)
-
-  # Return result
-  return(dev_dat)
-}
-
-
-### Data Wide to Long
-
-# This function takes a data set as an input and pivots it from wide to long,
-# so that there is an ID column, a profile column, and a deviation column.
-# This format is required to create the deviation plot.
-wide_to_long <- function(dat) {
-  # Pivot the data frame from wide to long
-  dat <- dat |>
-    pivot_longer(!respondent, names_to = "profile", values_to = "deviation") |>
-    mutate(profile = paste0("Profile ", str_extract(profile, "\\d+")))
-  # Return result
-  return(dat)
+# Paired observations are already keyed by respondent and profile. Keeping the
+# real profile identifier avoids relabeling partial replications as 1, 2, ... .
+compute_deviation <- function(pairs) {
+  pairs |>
+    transmute(
+      respondent,
+      profile = paste0("Profile ", profile),
+      deviation = dv_round_2 - dv_round_1
+    )
 }
 
 

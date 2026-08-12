@@ -2,7 +2,7 @@
   "name": "conjoint-companion-desktop",
   "private": true,
   "description": "Offline desktop companion app for test-retest reliability workflows in metric conjoint experiments.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
@@ -10,19 +10,25 @@
   },
   "homepage": "https://shiny.drdiscipulus.de/conjoint_app/",
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 1420",
     "build": "vite build",
-    "prepare:shiny": "node scripts/sync_shiny_app.mjs",
-    "prepare:runtime": "npm run prepare:shiny && node scripts/stage_r_runtime.mjs",
-    "tauri:dev": "npm run prepare:shiny && tauri dev",
-    "tauri:build": "npm run prepare:runtime && tauri build --no-bundle",
+    "prepare:runtime": "node scripts/stage_r_runtime.mjs",
+    "smoke:runtime": "node scripts/smoke_bundled_runtime.mjs",
+    "tauri:dev": "tauri dev",
     "export:portable": "node scripts/export_portable.mjs",
-    "release:portable": "npm run tauri:build && npm run export:portable",
-    "check:shiny": "Rscript src-tauri/resources/shiny-app/scripts/check_app.R"
+    "check:shiny": "Rscript src-tauri/resources/shiny-app/scripts/check_app.R",
+    "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo test --manifest-path src-tauri/Cargo.toml && cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings",
+    "check:audit": "npm audit --audit-level=high && cargo audit --file src-tauri/Cargo.lock",
+    "check": "npm run build && npm run check:shiny && npm run check:rust && npm run check:audit",
+    "release:windows": "node scripts/release_preflight.mjs windows && npm run check && npm run prepare:runtime && npm run smoke:runtime && tauri build --no-bundle && npm run export:portable",
+    "release:macos": "node scripts/release_preflight.mjs macos && npm run check && npm run prepare:runtime && npm run smoke:runtime && tauri build --bundles app --config src-tauri/tauri.macos.conf.json && node scripts/verify_macos_bundle.mjs && npm run export:portable"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "2.10.1",
-    "vite": "^5.4.8"
+    "@tauri-apps/cli": "2.11.4",
+    "vite": "8.2.1"
   }
 }

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "targets": ["app"],
+    "macOS": {
+      "frameworks": ["bundle-runtime/R.framework"],
+      "files": {
+        "SharedSupport/LICENSE": "../LICENSE",
+        "SharedSupport/THIRD_PARTY_NOTICES.txt": "resources/runtime/THIRD_PARTY_NOTICES.txt"
+      },
+      "minimumSystemVersion": "12.0",
+      "hardenedRuntime": true
+    }
+  }
+}

@@ -56,68 +56,7 @@ ui <- fluidPage(
   # Set theme
   theme = custom_theme,
   tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "app.css"),
-    tags$script(HTML("
-      (() => {
-        if (window.__CONJOINT_DESKTOP_DOWNLOADS_BOUND) {
-          return;
-        }
-        window.__CONJOINT_DESKTOP_DOWNLOADS_BOUND = true;
-
-        const isLocalShinyPage = () => /^http:\\/\\/(127\\.0\\.0\\.1|localhost)(:\\d+)?$/.test(window.location.origin);
-
-        const normalizeDownloadLinks = () => {
-          if (!isLocalShinyPage() || !document.querySelectorAll) {
-            return;
-          }
-
-          document.querySelectorAll('a.shiny-download-link').forEach((link) => {
-            if (link.getAttribute('target') !== '_self') {
-              link.setAttribute('target', '_self');
-            }
-          });
-        };
-
-        document.addEventListener('click', (event) => {
-          const target = event.target;
-          const link = target && target.closest ? target.closest('a.shiny-download-link') : null;
-          if (link && isLocalShinyPage()) {
-            link.setAttribute('target', '_self');
-
-            if (link.classList.contains('disabled') || link.hasAttribute('disabled')) {
-              return;
-            }
-
-            if (window.Shiny && window.Shiny.setInputValue && link.id) {
-              event.preventDefault();
-              event.stopImmediatePropagation();
-              window.Shiny.setInputValue('desktop_download_request', {
-                id: link.id,
-                nonce: Date.now() + Math.random()
-              }, { priority: 'event' });
-            }
-          }
-        }, true);
-
-        const startObserver = () => {
-          normalizeDownloadLinks();
-          if (window.MutationObserver && document.documentElement) {
-            new MutationObserver(normalizeDownloadLinks).observe(document.documentElement, {
-              subtree: true,
-              childList: true,
-              attributes: true,
-              attributeFilter: ['href', 'target', 'class']
-            });
-          }
-        };
-
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', startObserver, { once: true });
-        } else {
-          startObserver();
-        }
-      })();
-    "))
+    tags$link(rel = "stylesheet", type = "text/css", href = "app.css")
   ),
 
 

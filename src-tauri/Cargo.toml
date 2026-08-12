@@ -1,6 +1,6 @@
 [package]
 name = "conjoint_companion_desktop"
-version = "0.1.0"
+version = "0.2.0"
 description = "Desktop shell for Conjoint Companion"
 authors = ["Jens Schüler"]
 license = "GPL-3.0-only"
@@ -12,7 +12,7 @@ tauri-build = { version = "2.5", features = [] }
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-tauri = { version = "2.10", features = [] }
+tauri = { version = "2.11", features = [] }
 url = "2"
 
 [features]

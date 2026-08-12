@@ -33,6 +33,12 @@ The regression tests compare:
 - pooled-regression table,
 - pooled-regression model-fit text.
 
+Validation tests additionally cover row-order-independent pairing, partial
+profile replication, global removal of incomplete respondents, duplicate and
+missing identifiers, missing common profiles, insufficient respondents,
+zero-variance profiles, inconsistent profile attributes, and preservation of
+non-consecutive profile IDs in tables and plots.
+
 Numeric comparisons use a small tolerance so harmless floating-point
 representation differences do not fail tests.
 
@@ -40,3 +46,6 @@ representation differences do not fail tests.
 
 Do not update baseline fixtures as part of routine refactoring. Regenerate them
 only when a statistical/output change is intentional and documented.
+
+The R runner uses a null PDF device. A successful test run must not create an
+`Rplots.pdf` or otherwise dirty the worktree.

@@ -9,12 +9,13 @@ session$onSessionEnded(function() {
 # check and compute: are both used as triggers/blocks
 rv <- reactiveValues(
   dat = NULL,
+  pairs = NULL,
+  validation_report = NULL,
   check = NULL,
   compute = NULL,
   reset = FALSE,
   upload_error = NULL,
   check_error = NULL,
-  dropped_profiles = FALSE,
   inspect = NULL
 )
 shinyjs::disable("check_data")
@@ -104,8 +105,9 @@ observeEvent(input$upload_data, {
   rv$compute <- NULL
   # Set data to null when new data is uploaded
   rv$dat <- NULL
+  rv$pairs <- NULL
+  rv$validation_report <- NULL
   rv$check_error <- NULL
-  rv$dropped_profiles <- FALSE
   rv$inspect <- NULL
   shinyjs::disable("check_data")
   shinyjs::disable("compute")
@@ -150,12 +152,54 @@ output$check_status <- renderUI({
     return(tags$div(class = "status-badge status-error", icon("exclamation-triangle"), rv$check_error))
   }
   if (!is.null(rv$check) && rv$check == "okay") {
-    if (isTRUE(rv$dropped_profiles)) {
-      return(tags$div(class = "status-badge status-checked", icon("check"), "Data validated; non-replicated profiles removed"))
+    report <- rv$validation_report
+    if (length(report$excluded_profiles) > 0L || length(report$excluded_respondents) > 0L) {
+      return(tags$div(class = "status-badge status-checked", icon("check"), "Data validated with documented exclusions"))
     }
     return(tags$div(class = "status-badge status-checked", icon("check"), "Data validated"))
   }
   NULL
+})
+
+output$validation_report <- renderUI({
+  req(rv$check == "okay", rv$validation_report)
+  report <- rv$validation_report
+  excluded_profile_text <- if (length(report$excluded_profiles) > 0L) {
+    paste(report$excluded_profiles, collapse = ", ")
+  } else {
+    "None"
+  }
+  excluded_respondent_text <- if (length(report$excluded_respondents) > 0L) {
+    shown <- utils::head(report$excluded_respondents, 20L)
+    suffix <- if (length(report$excluded_respondents) > 20L) ", ..." else ""
+    paste0(paste(shown, collapse = ", "), suffix)
+  } else {
+    "None"
+  }
+
+  tags$div(
+    class = "validation-report",
+    tags$div(
+      class = "validation-report-header",
+      icon("clipboard-check"),
+      tags$strong("Validation summary")
+    ),
+    tags$ul(
+      tags$li(
+        report$retained_respondent_count, " of ", report$input_respondent_count,
+        " respondents retained"
+      ),
+      tags$li("Analyzed profiles: ", paste(report$analyzed_profiles, collapse = ", ")),
+      tags$li("Profiles not replicated in both rounds: ", excluded_profile_text),
+      tags$li(length(report$excluded_respondents), " incomplete respondent(s) excluded")
+    ),
+    if (length(report$excluded_respondents) > 0L) {
+      tags$details(
+        tags$summary(length(report$excluded_respondents), " incomplete respondent(s) excluded from all analyses"),
+        tags$p("Respondent IDs: ", tags$code(excluded_respondent_text))
+      )
+    }
+  )
 })
 
 output$workflow_status <- renderUI({
@@ -203,17 +247,19 @@ observeEvent(input$check_data, {
   validation <- try(validate_reliability_dataset(rv$dat), silent = TRUE)
   if (inherits(validation, "try-error")) {
     rv$dat <- NULL
+    rv$pairs <- NULL
+    rv$validation_report <- NULL
     rv$check <- NULL
     rv$check_error <- conditionMessage(attr(validation, "condition"))
-    rv$dropped_profiles <- FALSE
     shinyjs::disable("compute")
     return(NULL)
   }
 
   rv$dat <- validation$data
+  rv$pairs <- validation$pairs
+  rv$validation_report <- validation$report
   rv$check <- "okay"
   rv$check_error <- NULL
-  rv$dropped_profiles <- isTRUE(validation$dropped_profiles)
   shinyjs::enable("compute")
 })
 
@@ -235,12 +281,12 @@ observeEvent(input$compute, {
 # Function to get the iccs per profile as a table
 icc_table <- reactive({
   # Check data availability and status
-  req(rv$dat, rv$check, rv$compute)
+  req(rv$dat, rv$pairs, rv$check, rv$compute)
 
   # If compute is go
   if (rv$compute == "go") {
     # Call icc function
-    res <- rel_icc(rv$dat)
+    res <- rel_icc(rv$pairs)
 
     # Return icc table
     return(res)
@@ -251,20 +297,18 @@ icc_table <- reactive({
 # Create a table with test-retest reliabilities per profile
 rel_table <- reactive({
   # Check data availability and status
-  req(rv$dat, rv$check, rv$compute)
+  req(rv$dat, rv$pairs, rv$check, rv$compute)
 
   # If compute is go
   if (rv$compute == "go") {
     # Call correlation function
-    cor_res <- rel_cor(rv$dat)
+    cor_res <- rel_cor(rv$pairs) |>
+      mutate(r = round(r, 2))
 
     # Get results from icc_table
     icc_res <- icc_table()
 
-    # Create a data frame with correlation data
-    cor_res <- tibble(profile = unique(rv$dat$profile), r = round(cor_res, 2))
-
-    # Join correation and icc data
+    # Join correlation and ICC data by their explicit profile key
     res <- left_join(cor_res, icc_res, by = "profile")
 
     # Return reliability table
@@ -509,15 +553,12 @@ output$regression_note <- renderText({
 # Create a deviation plot with plotly and render and output it
 output$deviation_plot <- renderPlotly({
   # Check data availability and status
-  req(rv$dat, rv$check, rv$compute)
+  req(rv$dat, rv$pairs, rv$check, rv$compute)
 
   # If compute is go
   if (rv$compute == "go") {
     # Compute response deviations between round 1 and 2
-    df_dev <- compute_deviation(dat = rv$dat)
-
-    # Pivot the deviation data from wide to long
-    df_dev <- wide_to_long(dat = df_dev)
+    df_dev <- compute_deviation(pairs = rv$pairs)
 
     # Create the deviation plot
     deviation_plot(
@@ -592,12 +633,13 @@ observeEvent(input$reset, {
 
   shinyjs::reset("upload_data")
   rv$dat <- NULL
+  rv$pairs <- NULL
+  rv$validation_report <- NULL
   rv$check <- NULL
   rv$compute <- NULL
   rv$reset <- FALSE
   rv$upload_error <- NULL
   rv$check_error <- NULL
-  rv$dropped_profiles <- FALSE
   rv$inspect <- NULL
   shinyjs::disable("check_data")
   shinyjs::disable("compute")

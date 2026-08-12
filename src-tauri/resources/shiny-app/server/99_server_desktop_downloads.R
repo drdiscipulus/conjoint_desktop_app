@@ -1,11 +1,17 @@
 desktop_download_dir <- function() {
   configured <- Sys.getenv("CONJOINT_DOWNLOAD_DIR", unset = "")
-  candidates <- c(configured, file.path(path.expand("~"), "Downloads"), getwd())
+  candidates <- c(configured, file.path(path.expand("~"), "Downloads"))
   candidates <- candidates[nzchar(candidates)]
 
   for (candidate in candidates) {
-    if (dir.exists(candidate) || dir.create(candidate, recursive = TRUE, showWarnings = FALSE)) {
-      return(normalizePath(candidate, mustWork = FALSE))
+    if (!dir.exists(candidate) && !dir.create(candidate, recursive = TRUE, showWarnings = FALSE)) {
+      next
+    }
+
+    probe <- tempfile(".conjoint-companion-write-test-", tmpdir = candidate)
+    if (file.create(probe, showWarnings = FALSE)) {
+      unlink(probe, force = TRUE)
+      return(normalizePath(candidate, mustWork = TRUE))
     }
   }
 

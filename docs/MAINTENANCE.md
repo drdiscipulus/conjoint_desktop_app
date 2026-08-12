@@ -18,9 +18,10 @@ Low-risk maintenance usually includes:
 
 ```sh
 npm ci
-npm run check:shiny
-npm run release:portable
+npm run check
 ```
+
+`npm run check` covers the frontend build, R tests, Rust formatting/tests/Clippy, `npm audit`, and RustSec. Install `cargo-audit` before running it locally.
 
 The Shiny app has additional notes under `src-tauri/resources/shiny-app/docs/`.
 
@@ -29,20 +30,15 @@ The Shiny app has additional notes under `src-tauri/resources/shiny-app/docs/`.
 The bundled runtime and release archives are generated files. They are ignored by git and should not be committed:
 
 - `src-tauri/resources/runtime/`
+- `src-tauri/bundle-runtime/`
 - `src-tauri/target/`
 - `dist/`
 - `release-artifacts/`
 
 Attach portable builds to GitHub Releases instead.
 
-## Refreshing The Shiny Snapshot
+## Shiny Application Source
 
-`scripts/sync_shiny_app.mjs` refreshes the embedded Shiny app from a sibling checkout by default:
+The embedded application under `src-tauri/resources/shiny-app` is maintained directly in this repository. Do not copy a sibling Shiny checkout into it during development or release builds. This keeps builds reproducible and prevents desktop-specific validation, download, and offline behavior from being overwritten.
 
-```sh
-npm run prepare:shiny
-```
-
-Set `CONJOINT_SHINY_SOURCE` to point at another source checkout when needed.
-
-The sync script preserves desktop-owned dependency files such as `renv.lock`.
+Release builds use `npm run release:windows` on Windows x64 or `npm run release:macos` on Apple Silicon. See [RELEASING.md](RELEASING.md) for native signing and smoke-test requirements.

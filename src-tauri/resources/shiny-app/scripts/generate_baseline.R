@@ -60,27 +60,15 @@ prepare_reliability_demo_data <- function(path = "demo_data.csv") {
     stop('Variable "round" is not correctly specified.', call. = FALSE)
   }
 
-  initial_profiles <- dat |>
-    filter(round == 1) |>
-    pull(profile) |>
-    unique()
-  replication_profiles <- dat |>
-    filter(round == 2) |>
-    pull(profile) |>
-    unique()
-
-  if (!identical(initial_profiles, replication_profiles)) {
-    dat <- dat |>
-      filter(profile %in% replication_profiles)
-  }
-
-  dat
+  validate_reliability_dataset(dat)$data
 }
 
 make_reliability_table <- function(dat) {
-  cor_res <- rel_cor(dat)
-  icc_res <- rel_icc(dat)
-  tibble(profile = unique(dat$profile), r = round(cor_res, 2)) |>
+  pairs <- prepare_reliability_data(dat)$pairs
+  cor_res <- rel_cor(pairs) |>
+    mutate(r = round(r, 2))
+  icc_res <- rel_icc(pairs)
+  cor_res |>
     left_join(icc_res, by = "profile")
 }
 

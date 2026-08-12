@@ -2,7 +2,7 @@
 
 use std::{
     ffi::OsString,
-    fs,
+    fs::{self, OpenOptions},
     net::{SocketAddr, TcpListener, TcpStream},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -87,6 +87,9 @@ const SHINY_DOWNLOAD_LINK_SCRIPT: &str = r#"
 #[derive(Default)]
 struct ShinyProcessState(Mutex<Option<Child>>);
 
+#[derive(Default)]
+struct ShinyPortState(Mutex<Option<u16>>);
+
 struct ResourceLayout {
     root: PathBuf,
     shiny_app: PathBuf,
@@ -94,13 +97,13 @@ struct ResourceLayout {
     rscript: PathBuf,
     r_home: Option<PathBuf>,
     r_library: Option<PathBuf>,
-    download_dir: Option<PathBuf>,
+    download_dir: PathBuf,
 }
 
 fn main() {
     tauri::Builder::default()
         .manage(ShinyProcessState::default())
-        .invoke_handler(tauri::generate_handler![save_shiny_download])
+        .manage(ShinyPortState::default())
         .setup(|app| {
             create_main_window(app)?;
 
@@ -129,57 +132,36 @@ fn create_main_window(app: &tauri::App) -> tauri::Result<()> {
         .first()
         .expect("main window config is missing");
 
+    let app_handle = app.handle().clone();
     WebviewWindowBuilder::from_config(app, window_config)?
         .initialization_script(SHINY_DOWNLOAD_LINK_SCRIPT)
         .on_download(handle_download)
+        .on_navigation(move |url| {
+            let port = current_shiny_port(&app_handle);
+            is_allowed_navigation(url, port, cfg!(debug_assertions))
+        })
         .build()?;
 
     Ok(())
 }
 
-#[tauri::command]
-fn save_shiny_download(
-    app: tauri::AppHandle,
-    filename: String,
-    bytes: Vec<u8>,
-) -> Result<String, String> {
-    let base_dir = executable_directory()
-        .or_else(|_| app.path().download_dir())
-        .or_else(|_| std::env::current_dir())
-        .map_err(|error| format!("Could not resolve a download folder: {error}"))?;
-    fs::create_dir_all(&base_dir).map_err(|error| {
-        format!(
-            "Could not create download folder {}: {error}",
-            base_dir.display()
-        )
-    })?;
-
-    let path = unique_download_path(base_dir.join(sanitize_download_filename(&filename)));
-    fs::write(&path, bytes)
-        .map_err(|error| format!("Could not write download file {}: {error}", path.display()))?;
-
-    Ok(path.display().to_string())
-}
-
-fn executable_directory() -> Result<PathBuf, std::io::Error> {
-    let executable = std::env::current_exe()?;
-    Ok(executable
-        .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_else(PathBuf::new))
-}
-
 fn handle_download<R: tauri::Runtime>(webview: Webview<R>, event: DownloadEvent<'_>) -> bool {
     match event {
         DownloadEvent::Requested { url, destination } => {
+            let port = current_shiny_port(webview.app_handle());
+            if !is_expected_shiny_url(&url, port) {
+                return false;
+            }
             if let Some(path) = download_destination(&webview, &url, destination) {
                 *destination = path;
             }
         }
-        DownloadEvent::Finished { url, path, success } => {
-            if !success {
-                eprintln!("Download failed for {url}; target path was {path:?}");
-            }
+        DownloadEvent::Finished {
+            url,
+            path,
+            success: false,
+        } => {
+            eprintln!("Download failed for {url}; target path was {path:?}");
         }
         _ => {}
     }
@@ -192,18 +174,17 @@ fn download_destination<R: tauri::Runtime>(
     url: &Url,
     suggested_destination: &Path,
 ) -> Option<PathBuf> {
-    let base_dir = webview
-        .path()
-        .download_dir()
-        .or_else(|_| std::env::current_dir())
-        .ok()?;
-    let _ = fs::create_dir_all(&base_dir);
+    let base_dir = webview.path().download_dir().ok()?;
+    if ensure_directory_writable(&base_dir).is_err() {
+        return None;
+    }
 
-    let filename = suggested_destination
+    let suggested_filename = suggested_destination
         .file_name()
         .filter(|name| !name.is_empty())
         .map(OsString::from)
         .unwrap_or_else(|| filename_from_url(url));
+    let filename = sanitize_download_filename(&suggested_filename.to_string_lossy());
 
     Some(unique_download_path(base_dir.join(filename)))
 }
@@ -247,10 +228,7 @@ fn unique_download_path(path: PathBuf) -> PathBuf {
         return path;
     }
 
-    let parent = path
-        .parent()
-        .map(Path::to_path_buf)
-        .unwrap_or_else(PathBuf::new);
+    let parent = path.parent().map(Path::to_path_buf).unwrap_or_default();
     let stem = path
         .file_stem()
         .map(|value| value.to_string_lossy().into_owned())
@@ -273,19 +251,95 @@ fn unique_download_path(path: PathBuf) -> PathBuf {
     unreachable!("download filename search is unbounded")
 }
 
+fn ensure_directory_writable(directory: &Path) -> Result<(), String> {
+    fs::create_dir_all(directory).map_err(|error| {
+        format!(
+            "Could not create download folder {}: {error}",
+            directory.display()
+        )
+    })?;
+
+    let probe = directory.join(format!(
+        ".conjoint-companion-write-test-{}",
+        std::process::id()
+    ));
+    OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&probe)
+        .map_err(|error| {
+            format!(
+                "Download folder {} is not writable: {error}",
+                directory.display()
+            )
+        })?;
+    fs::remove_file(&probe).map_err(|error| {
+        format!(
+            "Could not remove download folder write test {}: {error}",
+            probe.display()
+        )
+    })?;
+    Ok(())
+}
+
+fn current_shiny_port<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<u16> {
+    app.state::<ShinyPortState>()
+        .0
+        .lock()
+        .ok()
+        .and_then(|guard| *guard)
+}
+
+fn is_expected_shiny_url(url: &Url, expected_port: Option<u16>) -> bool {
+    url.scheme() == "http"
+        && matches!(url.host_str(), Some("127.0.0.1" | "localhost"))
+        && expected_port.is_some_and(|port| url.port() == Some(port))
+}
+
+fn is_allowed_navigation(url: &Url, shiny_port: Option<u16>, debug_build: bool) -> bool {
+    if matches!(url.scheme(), "tauri" | "asset")
+        || matches!(url.host_str(), Some("tauri.localhost"))
+    {
+        return true;
+    }
+
+    if debug_build
+        && url.scheme() == "http"
+        && url.host_str() == Some(HOST)
+        && url.port() == Some(1420)
+    {
+        return true;
+    }
+
+    is_expected_shiny_url(url, shiny_port)
+}
+
 fn start_and_open_shiny(app: tauri::AppHandle) -> Result<(), String> {
     emit_status(&app, "Preparing bundled Shiny resources.");
     let layout = resolve_resource_layout(&app)?;
     let port = find_available_port(HOST)?;
 
     emit_status(&app, "Starting local R/Shiny process.");
-    let child = start_shiny_process(&layout, port)?;
+    let mut child = start_shiny_process(&layout, port)?;
     {
         let state = app.state::<ShinyProcessState>();
-        *state
-            .0
-            .lock()
-            .map_err(|_| "Shiny process state is unavailable.")? = Some(child);
+        match state.0.lock() {
+            Ok(mut guard) => *guard = Some(child),
+            Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err("Shiny process state is unavailable.".to_string());
+            }
+        };
+    }
+    {
+        let state = app.state::<ShinyPortState>();
+        if let Ok(mut guard) = state.0.lock() {
+            *guard = Some(port);
+        } else {
+            stop_shiny(&app);
+            return Err("Shiny port state is unavailable.".to_string());
+        };
     }
 
     if !wait_for_local_port(HOST, port, Duration::from_secs(20)) {
@@ -314,7 +368,7 @@ fn resolve_resource_layout(app: &tauri::AppHandle) -> Result<ResourceLayout, Str
     let dev_root = manifest_dir.join("resources");
     let bundled_root = app.path().resource_dir().ok();
 
-    let root = if dev_root.join("desktop").join("run_shiny.R").is_file() {
+    let root = if cfg!(debug_assertions) && dev_root.join("desktop").join("run_shiny.R").is_file() {
         dev_root
     } else {
         bundled_root.ok_or_else(|| "Could not resolve Tauri resource directory.".to_string())?
@@ -335,7 +389,7 @@ fn resolve_resource_layout(app: &tauri::AppHandle) -> Result<ResourceLayout, Str
         ));
     }
 
-    let r_home = bundled_r_home(&root);
+    let r_home = bundled_r_home(&root, &manifest_dir);
     let rscript = rscript_candidates(&root, r_home.as_deref())
         .into_iter()
         .find(|candidate| candidate.is_file())
@@ -345,9 +399,11 @@ fn resolve_resource_layout(app: &tauri::AppHandle) -> Result<ResourceLayout, Str
         .join("R-library")
         .is_dir()
         .then(|| root.join("runtime").join("R-library"));
-    let download_dir = executable_directory()
-        .or_else(|_| app.path().download_dir())
-        .ok();
+    let download_dir = app
+        .path()
+        .download_dir()
+        .map_err(|error| format!("Could not resolve the user Downloads folder: {error}"))?;
+    ensure_directory_writable(&download_dir)?;
 
     Ok(ResourceLayout {
         root,
@@ -360,7 +416,29 @@ fn resolve_resource_layout(app: &tauri::AppHandle) -> Result<ResourceLayout, Str
     })
 }
 
-fn bundled_r_home(root: &Path) -> Option<PathBuf> {
+fn bundled_r_home(root: &Path, manifest_dir: &Path) -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        let development_framework = manifest_dir
+            .join("bundle-runtime")
+            .join("R.framework")
+            .join("Resources");
+        if development_framework.is_dir() {
+            return Some(development_framework);
+        }
+
+        if let Some(contents_dir) = root.parent() {
+            let bundled_framework = contents_dir
+                .join("Frameworks")
+                .join("R.framework")
+                .join("Resources");
+            if bundled_framework.is_dir() {
+                return Some(bundled_framework);
+            }
+        }
+    }
+
+    let _ = manifest_dir;
     let candidate = root.join("runtime").join("R");
     candidate.is_dir().then_some(candidate)
 }
@@ -397,6 +475,7 @@ fn start_shiny_process(layout: &ResourceLayout, port: u16) -> Result<Child, Stri
         .env("CONJOINT_SHINY_APP_DIR", &layout.shiny_app)
         .env("CONJOINT_SHINY_HOST", HOST)
         .env("CONJOINT_SHINY_PORT", port.to_string())
+        .env("RENV_CONFIG_AUTOLOADER_ENABLED", "FALSE")
         .env("R_DEFAULT_PACKAGES", "NULL")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -410,9 +489,7 @@ fn start_shiny_process(layout: &ResourceLayout, port: u16) -> Result<Child, Stri
             .env("CONJOINT_R_LIBRARY", r_library)
             .env("R_LIBS_USER", r_library);
     }
-    if let Some(download_dir) = &layout.download_dir {
-        command.env("CONJOINT_DOWNLOAD_DIR", download_dir);
-    }
+    command.env("CONJOINT_DOWNLOAD_DIR", &layout.download_dir);
 
     #[cfg(windows)]
     command.creation_flags(CREATE_NO_WINDOW);
@@ -426,6 +503,9 @@ fn start_shiny_process(layout: &ResourceLayout, port: u16) -> Result<Child, Stri
 }
 
 fn stop_shiny(app: &tauri::AppHandle) {
+    if let Ok(mut port) = app.state::<ShinyPortState>().0.lock() {
+        *port = None;
+    }
     let state = app.state::<ShinyProcessState>();
     let Ok(mut guard) = state.0.lock() else {
         return;
@@ -470,5 +550,87 @@ fn emit_status(app: &tauri::AppHandle, message: &str) {
 fn emit_error(app: &tauri::AppHandle, message: &str) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.emit("shiny-startup-error", message);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temporary_test_directory(name: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should follow the Unix epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "conjoint-companion-{name}-{}-{nonce}",
+            std::process::id()
+        ))
+    }
+
+    #[test]
+    fn download_filenames_are_reduced_to_safe_basenames() {
+        assert_eq!(
+            sanitize_download_filename("../results<>.xlsx"),
+            OsString::from("results__.xlsx")
+        );
+        assert_eq!(
+            sanitize_download_filename("..."),
+            OsString::from("conjoint-companion-download")
+        );
+    }
+
+    #[test]
+    fn unique_download_paths_keep_the_extension() {
+        let directory = temporary_test_directory("unique-download");
+        fs::create_dir_all(&directory).expect("temporary directory should be created");
+        let original = directory.join("results.xlsx");
+        fs::write(&original, b"existing").expect("fixture should be written");
+
+        assert_eq!(
+            unique_download_path(original),
+            directory.join("results (1).xlsx")
+        );
+
+        fs::remove_dir_all(directory).expect("temporary directory should be removed");
+    }
+
+    #[test]
+    fn only_the_active_local_shiny_origin_is_accepted() {
+        let active = Url::parse("http://127.0.0.1:43123/results").unwrap();
+        let wrong_port = Url::parse("http://127.0.0.1:43124/results").unwrap();
+        let remote = Url::parse("https://example.com/results").unwrap();
+
+        assert!(is_expected_shiny_url(&active, Some(43123)));
+        assert!(!is_expected_shiny_url(&wrong_port, Some(43123)));
+        assert!(!is_expected_shiny_url(&remote, Some(43123)));
+        assert!(!is_expected_shiny_url(&active, None));
+    }
+
+    #[test]
+    fn navigation_allows_loader_dev_server_and_active_shiny_only() {
+        let loader = Url::parse("tauri://localhost/").unwrap();
+        let dev_server = Url::parse("http://127.0.0.1:1420/").unwrap();
+        let shiny = Url::parse("http://localhost:43123/").unwrap();
+        let external = Url::parse("https://example.com/").unwrap();
+
+        assert!(is_allowed_navigation(&loader, None, false));
+        assert!(is_allowed_navigation(&dev_server, None, true));
+        assert!(is_allowed_navigation(&shiny, Some(43123), false));
+        assert!(!is_allowed_navigation(&external, Some(43123), false));
+    }
+
+    #[test]
+    fn download_directory_probe_cleans_up_after_itself() {
+        let directory = temporary_test_directory("writable-directory");
+        ensure_directory_writable(&directory).expect("temporary directory should be writable");
+        assert_eq!(
+            fs::read_dir(&directory)
+                .expect("temporary directory should exist")
+                .count(),
+            0
+        );
+        fs::remove_dir_all(directory).expect("temporary directory should be removed");
     }
 }

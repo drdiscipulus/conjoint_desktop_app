@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const packageJson = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf-8"));
 const releaseRoot = path.join(repoRoot, "src-tauri", "target", "release");
-const artifactsRoot = path.join(repoRoot, "release-artifacts", process.platform, "portable");
+const artifactsRoot = path.join(repoRoot, "release-artifacts", platformLabel(), "portable");
 const stagingRoot = path.join(artifactsRoot, "staging");
 const executableName = process.platform === "win32"
   ? "conjoint_companion_desktop.exe"
@@ -36,7 +36,11 @@ function removeAndCreate(directory) {
 
 function copyIfPresent(source, destination) {
   if (existsSync(source)) {
-    cpSync(source, destination, { recursive: true, force: true });
+    cpSync(source, destination, {
+      recursive: true,
+      force: true,
+      filter: (sourcePath) => path.basename(sourcePath).toLowerCase() !== "rplots.pdf"
+    });
     return true;
   }
   return false;
@@ -67,18 +71,10 @@ function sha256(filePath) {
 }
 
 function createWindowsZip(sourceDirectory, archivePath) {
-  execFileSync("powershell.exe", [
-    "-NoProfile",
-    "-Command",
-    "& { param($source, $destination) Compress-Archive -Path $source -DestinationPath $destination -Force }",
-    path.join(sourceDirectory, "*"),
-    archivePath
-  ], { stdio: "inherit" });
-}
-
-function createTarGz(sourceDirectory, archivePath) {
-  execFileSync("tar", [
-    "-czf",
+  execFileSync("tar.exe", [
+    "-a",
+    "-c",
+    "-f",
     archivePath,
     "-C",
     path.dirname(sourceDirectory),
@@ -86,7 +82,18 @@ function createTarGz(sourceDirectory, archivePath) {
   ], { stdio: "inherit" });
 }
 
-function main() {
+function createMacZip(appBundle, archivePath) {
+  execFileSync("ditto", [
+    "-c",
+    "-k",
+    "--sequesterRsrc",
+    "--keepParent",
+    appBundle,
+    archivePath,
+  ], { stdio: "inherit" });
+}
+
+function exportWindows() {
   const executablePath = path.join(releaseRoot, executableName);
   if (!existsSync(executablePath)) {
     throw new Error(`Release executable not found at ${executablePath}. Run npm run tauri:build first.`);
@@ -99,18 +106,17 @@ function main() {
 
   cpSync(executablePath, path.join(portableRoot, executableName), { force: true });
   copyIfPresent(path.join(releaseRoot, "resources"), path.join(portableRoot, "resources"));
+  cpSync(path.join(repoRoot, "LICENSE"), path.join(portableRoot, "LICENSE"), { force: true });
+  cpSync(path.join(repoRoot, "README.md"), path.join(portableRoot, "README.md"), { force: true });
+  copyIfPresent(
+    path.join(repoRoot, "src-tauri", "resources", "runtime", "THIRD_PARTY_NOTICES.txt"),
+    path.join(portableRoot, "THIRD_PARTY_NOTICES.txt")
+  );
   writeFileSync(path.join(portableRoot, ".conjoint_companion_portable"), "", "utf-8");
 
-  const archiveName = process.platform === "win32"
-    ? `${artifactBaseName}.zip`
-    : `${artifactBaseName}.tar.gz`;
+  const archiveName = `${artifactBaseName}.zip`;
   const archivePath = path.join(artifactsRoot, archiveName);
-
-  if (process.platform === "win32") {
-    createWindowsZip(portableRoot, archivePath);
-  } else {
-    createTarGz(portableRoot, archivePath);
-  }
+  createWindowsZip(portableRoot, archivePath);
 
   const digest = sha256(archivePath);
   writeFileSync(path.join(artifactsRoot, "SHA256SUMS.txt"), `${digest}  ${archiveName}\n`, "utf-8");
@@ -120,6 +126,40 @@ function main() {
   console.log(`Release archive: ${archivePath}`);
   console.log(`Checksum file: ${path.join(artifactsRoot, "SHA256SUMS.txt")}`);
   console.log(`Files: ${summary.fileCount}`);
+}
+
+function exportMac() {
+  removeAndCreate(artifactsRoot);
+  const appBundle = path.join(
+    releaseRoot,
+    "bundle",
+    "macos",
+    "Conjoint Companion.app"
+  );
+  if (!existsSync(appBundle)) {
+    throw new Error(`Signed macOS app bundle not found at ${appBundle}.`);
+  }
+
+  const artifactBaseName = `Conjoint-Companion-v${packageJson.version}-${platformLabel()}`;
+  const archiveName = `${artifactBaseName}.zip`;
+  const archivePath = path.join(artifactsRoot, archiveName);
+  createMacZip(appBundle, archivePath);
+
+  const digest = sha256(archivePath);
+  writeFileSync(path.join(artifactsRoot, "SHA256SUMS.txt"), `${digest}  ${archiveName}\n`, "utf-8");
+  console.log(`Signed macOS app: ${appBundle}`);
+  console.log(`Release archive: ${archivePath}`);
+  console.log(`Checksum file: ${path.join(artifactsRoot, "SHA256SUMS.txt")}`);
+}
+
+function main() {
+  if (process.platform === "win32") {
+    exportWindows();
+  } else if (process.platform === "darwin") {
+    exportMac();
+  } else {
+    throw new Error(`Portable releases are not supported on ${process.platform}.`);
+  }
 }
 
 main();

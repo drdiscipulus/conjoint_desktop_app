@@ -8,6 +8,9 @@ script_path <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = 
 root <- normalizePath(file.path(dirname(script_path), ".."), mustWork = TRUE)
 setwd(root)
 
+# Plot-producing tests must not leave Rplots.pdf in the working tree.
+options(device = function(...) grDevices::pdf(file = NULL, ...))
+
 app_packages <- c(
   "shiny",
   "shinyjs",

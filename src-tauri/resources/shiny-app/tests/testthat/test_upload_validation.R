@@ -75,3 +75,90 @@ test_that("reliability schema validation rejects bad datasets", {
   )
   expect_error(validate_reliability_dataset(invalid_round), "rounds 1 and 2")
 })
+
+make_pairing_data <- function(respondents = 1:3, profiles = c(1, 3)) {
+  tidyr::expand_grid(
+    respondent = respondents,
+    round = c(1, 2),
+    profile = profiles
+  ) |>
+    mutate(
+      dv = respondent * 10 + profile,
+      att_1 = if_else(profile == profiles[[1]], 0, 1),
+      att_2 = if_else(profile == profiles[[1]], 1, 0)
+    )
+}
+
+test_that("reliability pairs are matched by respondent rather than row position", {
+  dat <- make_pairing_data(profiles = 7) |>
+    arrange(round, if_else(round == 1, respondent, -respondent))
+
+  validation <- validate_reliability_dataset(dat)
+  correlations <- rel_cor(validation$pairs)
+
+  expect_equal(correlations$profile, 7)
+  expect_equal(correlations$r, 1)
+})
+
+test_that("profiles missing from one round are reported and excluded", {
+  dat <- make_pairing_data()
+  dat <- dat |>
+    filter(!(round == 2 & profile == 3))
+
+  validation <- validate_reliability_dataset(dat)
+
+  expect_equal(validation$report$analyzed_profiles, 1)
+  expect_equal(validation$report$excluded_profiles, 3)
+  expect_equal(sort(unique(validation$data$profile)), 1)
+  expect_length(validation$report$excluded_respondents, 0)
+})
+
+test_that("an incomplete respondent is removed from every profile and round", {
+  dat <- make_pairing_data() |>
+    filter(!(respondent == 3 & round == 2 & profile == 3))
+
+  validation <- validate_reliability_dataset(dat)
+
+  expect_equal(validation$report$excluded_respondents, 3)
+  expect_equal(validation$report$retained_respondent_count, 2)
+  expect_equal(sort(unique(validation$data$respondent)), c(1, 2))
+  expect_equal(nrow(validation$data), 8)
+})
+
+test_that("duplicate observations and missing respondent identifiers are rejected", {
+  dat <- make_pairing_data()
+  duplicated_dat <- bind_rows(dat, slice(dat, 1))
+  expect_error(validate_reliability_dataset(duplicated_dat), "duplicated combination")
+
+  missing_id <- dat
+  missing_id$respondent[[1]] <- NA
+  expect_error(validate_reliability_dataset(missing_id), "missing or empty identifiers")
+})
+
+test_that("invalid pairing outcomes are rejected with clear messages", {
+  no_common_profiles <- make_pairing_data(profiles = 1) |>
+    mutate(
+      profile = if_else(round == 1, 1, 3),
+      att_1 = if_else(round == 1, 0, 1),
+      att_2 = if_else(round == 1, 1, 0)
+    )
+  expect_error(validate_reliability_dataset(no_common_profiles), "any common profiles")
+
+  one_complete_respondent <- make_pairing_data() |>
+    filter(respondent == 1 | !(round == 2 & profile == 3))
+  expect_error(validate_reliability_dataset(one_complete_respondent), "Fewer than two respondents")
+
+  zero_variance <- make_pairing_data() |>
+    mutate(dv = if_else(profile == 1, 5, dv))
+  expect_error(validate_reliability_dataset(zero_variance), "no variation")
+})
+
+test_that("profile definitions and deviation labels remain explicit", {
+  inconsistent <- make_pairing_data()
+  inconsistent$att_1[[1]] <- 99
+  expect_error(validate_reliability_dataset(inconsistent), "consistently")
+
+  validation <- validate_reliability_dataset(make_pairing_data())
+  deviations <- compute_deviation(validation$pairs)
+  expect_setequal(unique(deviations$profile), c("Profile 1", "Profile 3"))
+})

@@ -21,41 +21,16 @@ source(project_file("functions_reliability.R"))
 
 prepare_demo_data_for_test <- function(path = "demo_data.csv") {
   dat <- vroom::vroom(path, na = c("", "NA"), show_col_types = FALSE)
-  dat <- column_checker(dat)
-  expect_false(inherits(dat, "try-error"))
-
-  att_num <- attribute_checker(dat)
-  expect_false(inherits(att_num, "try-error"))
-  expect_gte(att_num, 2)
-
-  dat <- class_checker(dat)
-  expect_false(inherits(dat, "try-error"))
-
-  round_test <- try(round_checker(dat), silent = TRUE)
-  expect_false(inherits(round_test, "try-error"))
-  expect_true(round_test)
-
-  initial_profiles <- dat |>
-    filter(round == 1) |>
-    pull(profile) |>
-    unique()
-  replication_profiles <- dat |>
-    filter(round == 2) |>
-    pull(profile) |>
-    unique()
-
-  if (!identical(initial_profiles, replication_profiles)) {
-    dat <- dat |>
-      filter(profile %in% replication_profiles)
-  }
-
-  dat
+  validation <- validate_reliability_dataset(dat)
+  validation$data
 }
 
 make_reliability_table_for_test <- function(dat) {
-  cor_res <- rel_cor(dat)
-  icc_res <- rel_icc(dat)
-  tibble(profile = unique(dat$profile), r = round(cor_res, 2)) |>
+  pairs <- prepare_reliability_data(dat)$pairs
+  cor_res <- rel_cor(pairs) |>
+    mutate(r = round(r, 2))
+  icc_res <- rel_icc(pairs)
+  cor_res |>
     left_join(icc_res, by = "profile")
 }
 

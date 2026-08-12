@@ -26,7 +26,7 @@ tabPanel(
       ),
       hr(),
       # Validate data handling
-      h5("2. Validate", help_icon("Requirement: upload a readable CSV or XLSX file first. This step validates required columns, numeric fields, and round/profile requirements.")),
+      h5("2. Validate", help_icon("Requirement: upload a readable CSV or XLSX file first. This step validates required columns, identifiers, duplicate keys, profile consistency, and complete respondent/profile pairing across rounds.")),
       actionButton("check_data", "Validate data", class = "btn-primary", width = "100%", icon = icon("search"), `data-tooltip` = "Requirement: upload a readable CSV or XLSX file first."),
       uiOutput("check_status"),
       hr(),
@@ -64,6 +64,13 @@ tabPanel(
         column(
           width = 12, offset = 0, class = "app-output-col app-output-inspect-col",
           uiOutput("inspect_row")
+        )
+      ),
+      fluidRow(
+        class = "app-output-row validation-report-row",
+        column(
+          width = 12, offset = 0, class = "app-output-col",
+          uiOutput("validation_report")
         )
       ),
       # Define top row

@@ -15,7 +15,13 @@ upload files, so upload handling is intentionally conservative.
 
 Browser MIME types are not trusted as the only validation signal. The server
 checks extension, file existence, file size, parseability, dimensions, required
-columns, numeric coercion, and expected `round` values.
+columns, numeric coercion, expected `round` values, non-empty identifiers,
+duplicate respondent/round/profile keys, and consistent profile attributes.
+
+Only profiles present in both rounds are analyzed. A respondent missing any
+observation within that common profile set is removed from all analyzed profiles
+and both rounds. The UI reports profile and respondent exclusions before the
+analysis runs.
 
 ## Temporary Files
 
@@ -28,6 +34,10 @@ tempdir()/conjoint_trt_app/<session-token>
 
 Generated result files are written there before being handed to Shiny's download
 mechanism.
+
+In the desktop build, completed downloads are copied to the user's normal
+Downloads directory after its writeability has been checked. Existing files are
+not overwritten; a unique filename is chosen instead.
 
 ## Cleanup
 

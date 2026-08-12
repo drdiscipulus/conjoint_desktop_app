@@ -555,6 +555,40 @@ body {
   color: #755200;
 }
 
+.validation-report-row:empty {
+  display: none;
+}
+
+.validation-report {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #c8ddd4;
+  border-left: 4px solid var(--uni-green);
+  border-radius: var(--radius-sm);
+  background: var(--uni-green-soft);
+  color: var(--app-text);
+}
+
+.validation-report-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.4rem;
+}
+
+.validation-report ul {
+  margin: 0.35rem 0;
+  padding-left: 1.25rem;
+}
+
+.validation-report details {
+  margin-top: 0.45rem;
+}
+
+.validation-report details p {
+  margin: 0.4rem 0 0;
+}
+
 .help-dot {
   position: relative;
   display: inline-flex;

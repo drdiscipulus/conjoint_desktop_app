@@ -8,6 +8,7 @@ It is not the primary public documentation for the desktop repository. Start wit
 
 - The desktop build preserves `renv.lock` and restores a bundled package library during runtime staging.
 - The app is launched locally by the Tauri shell through `src-tauri/resources/desktop/run_shiny.R`.
+- This snapshot is maintained directly and is the sole Shiny source used by desktop builds; no sibling repository is synchronized automatically.
 - Changes to statistical formulas, result definitions, and interpretation logic should be backed by regression tests.
 
 ## Useful Commands
@@ -15,6 +16,6 @@ It is not the primary public documentation for the desktop repository. Start wit
 From the repository root:
 
 ```sh
-npm run check:shiny
+npm run check
 Rscript src-tauri/resources/shiny-app/scripts/check_app.R
 ```

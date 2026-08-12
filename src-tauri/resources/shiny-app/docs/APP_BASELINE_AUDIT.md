@@ -172,8 +172,11 @@ Additional validation in `server/01_server_reliability_tab.R`:
 - At least two attributes must be present.
 - Required numeric columns must coerce to numeric.
 - Round must contain exactly rounds 1 and 2.
-- If round 2 contains fewer profiles than round 1, non-replicated round 1
-  profiles are removed.
+- Profiles are paired explicitly by identifier and only the intersection found
+  in both rounds is analyzed.
+- Duplicate respondent/round/profile keys are rejected. Respondents incomplete
+  within the common profile set are removed entirely from both rounds, and the
+  exclusions are shown in a structured validation report.
 
 Reliability functions in `functions_reliability.R`:
 
@@ -343,8 +346,9 @@ Functional/statistical risks:
   file.
 - Some validation failures are represented by `try-error`/`NULL`, which makes
   downstream behavior harder to test precisely.
-- Input validation mutates `rv$dat`, including dropping non-replicated profiles,
-  without a separately persisted validation report.
+- Reliability preparation is centralized in a pure helper that returns cleaned
+  long data, respondent/profile-paired wide data, and a separately persisted
+  validation report.
 
 Reproducibility risks:
 

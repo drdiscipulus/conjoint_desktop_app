@@ -8,7 +8,8 @@ Conjoint Companion Desktop wraps an R Shiny application in a small Tauri 2 deskt
 - The Tauri backend chooses a localhost port, launches the bundled R runtime, waits for Shiny to become available, and opens the Shiny UI in the desktop window.
 - The Shiny app snapshot lives in `src-tauri/resources/shiny-app`.
 - The desktop launch script lives in `src-tauri/resources/desktop/run_shiny.R`.
-- Release builds bundle a platform-specific R runtime and restored R package library under `src-tauri/resources/runtime`.
+- Windows release builds bundle R under `src-tauri/resources/runtime/R`. macOS release builds stage `R.framework` under `src-tauri/bundle-runtime` and place it in the app's `Contents/Frameworks` directory.
+- Both platforms bundle the restored R package library under `src-tauri/resources/runtime/R-library`.
 
 The app binds to `127.0.0.1` and is intended to run fully offline after download.
 
@@ -18,19 +19,28 @@ The app binds to `127.0.0.1` and is intended to run fully offline after download
 2. Tauri launches the local Shiny process.
 3. The researcher uploads data into the Shiny UI.
 4. Shiny processes data in session-specific temporary directories.
-5. Downloads are routed back through the desktop shell and saved locally.
+5. Downloads are routed back through the desktop shell and saved in the user's normal Downloads directory.
 6. Closing the desktop app stops the R child process.
 
 Uploaded data are not sent to GitHub or to the hosted web app.
 
-## Source And Bundled Snapshot
+## Shiny Application Source
 
-The desktop repo contains a copied Shiny app snapshot. `scripts/sync_shiny_app.mjs` can refresh it from a sibling source checkout, preserving desktop-owned files such as `renv.lock`.
+The Shiny application under `src-tauri/resources/shiny-app` is the authoritative source for the desktop application. Desktop builds never import code from a sibling checkout, so a given commit always packages the same application sources.
 
-The statistical workflow is treated as a protected baseline. Changes to formulas, output definitions, or interpretation logic should be covered by regression tests.
+The statistical workflow is treated as a protected baseline. Changes to formulas, pairing rules, output definitions, or interpretation logic must be covered by regression tests.
+
+Reliability data are paired by `respondent + profile`, never by row position. The analyzed profile set is the intersection of profiles found in rounds 1 and 2; respondents incomplete within that set are removed from both rounds before any reliability or regression calculation.
+
+## Desktop Security Boundary
+
+The Shiny process binds only to `127.0.0.1`. Tauri navigation and download handling accept only the exact localhost port started for the current session. External HTTP(S) pages do not receive desktop capabilities, and the loader page uses a restrictive content security policy.
 
 ## Release Artifacts
 
-`npm run release:portable` builds the Tauri executable, stages the bundled runtime, exports a portable directory, and creates a release archive plus `SHA256SUMS.txt`.
+- `npm run release:windows` creates an unsigned Windows x64 portable ZIP.
+- `npm run release:macos` creates a signed and notarized Apple Silicon `.app`, archives it as a ZIP, and verifies its framework references and signatures.
+
+Both commands require a clean worktree, consistent versions, and R 4.5.3. They create an archive and `SHA256SUMS.txt` under `release-artifacts/<platform>`.
 
 Release artifacts are intentionally ignored by git and should be attached to GitHub Releases.
