@@ -14,6 +14,7 @@ const rDestination = path.join(runtimeRoot, "R");
 const rFrameworkDestination = path.join(bundleRuntimeRoot, "R.framework");
 const libraryDestination = path.join(runtimeRoot, "R-library");
 const shinyAppRoot = path.join(resourcesRoot, "shiny-app");
+const macosMakevars = path.join(repoRoot, "scripts", "R-Makevars.macos");
 const expectedRVersion = "4.5.3";
 
 function runR(args, options = {}) {
@@ -21,9 +22,73 @@ function runR(args, options = {}) {
     cwd: repoRoot,
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
+    env: rBuildEnv(),
     ...options
   });
   return typeof output === "string" ? output.trim() : "";
+}
+
+function prependEnvPath(existing, entries) {
+  const presentEntries = entries.filter((entry) => existsSync(entry));
+  if (presentEntries.length === 0) {
+    return existing;
+  }
+  return [presentEntries.join(path.delimiter), existing].filter(Boolean).join(path.delimiter);
+}
+
+function appendEnvFlags(existing, flags) {
+  const presentFlags = flags.filter(Boolean);
+  if (presentFlags.length === 0) {
+    return existing;
+  }
+  return [existing, presentFlags.join(" ")].filter(Boolean).join(" ");
+}
+
+function rBuildEnv() {
+  const brewPrefix = "/opt/homebrew";
+  const gccLib = path.join(brewPrefix, "opt", "gcc", "lib", "gcc", "current");
+  const gfortran = path.join(brewPrefix, "bin", "gfortran");
+
+  const env = {
+    ...process.env,
+    PATH: prependEnvPath(process.env.PATH, [
+      path.join(brewPrefix, "bin"),
+      path.join(brewPrefix, "sbin")
+    ]),
+    PKG_CONFIG_PATH: prependEnvPath(process.env.PKG_CONFIG_PATH, [
+      path.join(brewPrefix, "lib", "pkgconfig"),
+      path.join(brewPrefix, "share", "pkgconfig"),
+      path.join(brewPrefix, "opt", "openssl@3", "lib", "pkgconfig"),
+      path.join(brewPrefix, "opt", "gettext", "lib", "pkgconfig"),
+      path.join(brewPrefix, "opt", "harfbuzz", "lib", "pkgconfig"),
+      path.join(brewPrefix, "opt", "fribidi", "lib", "pkgconfig"),
+      path.join(brewPrefix, "opt", "freetype", "lib", "pkgconfig"),
+      path.join(brewPrefix, "opt", "libpng", "lib", "pkgconfig")
+    ]),
+    CPPFLAGS: appendEnvFlags(process.env.CPPFLAGS, [
+      existsSync(path.join(brewPrefix, "include")) ? `-I${path.join(brewPrefix, "include")}` : "",
+      existsSync(path.join(brewPrefix, "opt", "gettext", "include")) ? `-I${path.join(brewPrefix, "opt", "gettext", "include")}` : "",
+      existsSync(path.join(brewPrefix, "opt", "openssl@3", "include")) ? `-I${path.join(brewPrefix, "opt", "openssl@3", "include")}` : ""
+    ]),
+    LDFLAGS: appendEnvFlags(process.env.LDFLAGS, [
+      existsSync(path.join(brewPrefix, "lib")) ? `-L${path.join(brewPrefix, "lib")}` : "",
+      existsSync(path.join(brewPrefix, "opt", "gettext", "lib")) ? `-L${path.join(brewPrefix, "opt", "gettext", "lib")}` : "",
+      existsSync(path.join(brewPrefix, "opt", "openssl@3", "lib")) ? `-L${path.join(brewPrefix, "opt", "openssl@3", "lib")}` : ""
+    ])
+  };
+
+  if (existsSync(gfortran)) {
+    env.FC = gfortran;
+    env.F77 = gfortran;
+  }
+  if (existsSync(gccLib)) {
+    env.FLIBS = `-L${gccLib} -lgfortran -lquadmath -lm`;
+  }
+  if (process.platform === "darwin" && existsSync(macosMakevars)) {
+    env.R_MAKEVARS_USER = macosMakevars;
+  }
+
+  return env;
 }
 
 function detectR() {
@@ -81,6 +146,7 @@ function copyWindowsRuntime(rHome) {
   cpSync(rHome, rDestination, {
     recursive: true,
     force: true,
+    dereference: true,
     filter: runtimeFilter
   });
 }
@@ -192,9 +258,17 @@ function restoreLibrary() {
   }
 
   cleanDirectory(libraryDestination);
+  const bootstrapScript = [
+    `library <- normalizePath(${JSON.stringify(libraryDestination)}, mustWork = TRUE)`,
+    ".libPaths(c(library, .libPaths()))",
+    "if (!requireNamespace('renv', quietly = TRUE)) install.packages('renv', lib = library, repos = 'https://cloud.r-project.org')"
+  ].join("; ");
+  runR(["-e", bootstrapScript], { stdio: "inherit" });
+
   const restoreScript = [
     `project <- normalizePath(${JSON.stringify(shinyAppRoot)}, mustWork = TRUE)`,
     `library <- normalizePath(${JSON.stringify(libraryDestination)}, mustWork = TRUE)`,
+    ".libPaths(c(library, .libPaths()))",
     "renv::restore(project = project, library = library, clean = TRUE, prompt = FALSE)"
   ].join("; ");
   runR(["-e", restoreScript], { stdio: "inherit" });

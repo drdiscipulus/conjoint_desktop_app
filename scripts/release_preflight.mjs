@@ -64,10 +64,18 @@ function checkMacSigning() {
   if (requestedPlatform !== "macos") {
     return;
   }
-  for (const variable of ["APPLE_SIGNING_IDENTITY", "APPLE_ID", "APPLE_PASSWORD", "APPLE_TEAM_ID"]) {
-    if (!process.env[variable]) {
-      throw new Error(`${variable} must be set for a signed and notarized macOS release.`);
-    }
+  if (!process.env.APPLE_SIGNING_IDENTITY) {
+    throw new Error("APPLE_SIGNING_IDENTITY must be set for a signed macOS release.");
+  }
+  const appleIdCredentials = ["APPLE_ID", "APPLE_PASSWORD", "APPLE_TEAM_ID"]
+    .every((variable) => Boolean(process.env[variable]));
+  const apiCredentials = ["APPLE_API_ISSUER", "APPLE_API_KEY", "APPLE_API_KEY_PATH"]
+    .every((variable) => Boolean(process.env[variable]));
+  if (!appleIdCredentials && !apiCredentials) {
+    throw new Error(
+      "Notarization requires APPLE_ID, APPLE_PASSWORD, and APPLE_TEAM_ID, " +
+      "or APPLE_API_ISSUER, APPLE_API_KEY, and APPLE_API_KEY_PATH."
+    );
   }
   const identities = run("security", ["find-identity", "-v", "-p", "codesigning"]);
   if (!identities.includes(process.env.APPLE_SIGNING_IDENTITY)) {

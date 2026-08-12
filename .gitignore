@@ -8,6 +8,8 @@ src-tauri/resources/shiny-app/renv/staging/
 release-artifacts/
 *.log
 Rplots.pdf
+.DS_Store
+.env*.local
 
 # Local working notes and AI-assistant configuration
 .local-notes/

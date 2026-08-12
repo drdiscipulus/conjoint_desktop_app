@@ -10,10 +10,17 @@ Releases are built, tested, and published manually. CI checks source changes but
 - Platform build tools required by Tauri
 - A clean checkout of this repository
 - `cargo-audit`
+- On macOS: Xcode command line tools, a paid Apple Developer account, and a `Developer ID Application` certificate
 
 Windows releases must be built on Windows x64. macOS releases must be built natively on Apple Silicon and require an Apple Developer ID Application certificate in the login keychain.
 
 The release process stages a platform-specific R runtime and R package library. Do not commit `src-tauri/resources/runtime`, `src-tauri/bundle-runtime`, `src-tauri/target`, `dist`, or `release-artifacts`.
+
+On macOS, install the native libraries used when restoring ARM64 R packages:
+
+```sh
+brew install pkg-config gettext openssl@3 harfbuzz fribidi gcc libtiff jpeg-turbo webp
+```
 
 ## Version Bump
 
@@ -40,7 +47,7 @@ This command runs the full checks, stages R 4.5.3 and the locked R library, smok
 
 ## macOS Apple Silicon
 
-Set signing and notarization credentials only in the local shell environment:
+Set signing and notarization credentials in the local shell environment, or copy `.env.release.local.example` to the ignored file `.env.release.local` and fill it locally:
 
 ```sh
 export APPLE_SIGNING_IDENTITY="Developer ID Application: ..."
@@ -51,7 +58,9 @@ npm ci
 npm run release:macos
 ```
 
-The command copies the complete CRAN `R.framework`, restores an ARM64 package library, rewrites absolute framework references to app-relative references, and builds an `.app` with hardened runtime. Tauri signs and notarizes it using the environment above. Verification checks Mach-O architectures and references, the embedded R runtime, `codesign`, Gatekeeper, and the stapled notarization ticket before creating the ZIP.
+Apple ID credentials are the documented default. The release script also accepts App Store Connect API credentials through `APPLE_API_ISSUER`, `APPLE_API_KEY`, and `APPLE_API_KEY_PATH`.
+
+The command copies the complete CRAN `R.framework`, restores an ARM64 package library, rewrites absolute framework references to app-relative references, and builds an `.app` with hardened runtime. It signs every embedded Mach-O file and the app with the same Developer ID before notarization. Verification checks architectures and framework references, the embedded R runtime, `codesign`, Gatekeeper, and the stapled notarization ticket before creating the ZIP.
 
 Release assets are written under:
 

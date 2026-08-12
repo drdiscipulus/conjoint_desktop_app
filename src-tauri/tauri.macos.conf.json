@@ -9,7 +9,8 @@
         "SharedSupport/THIRD_PARTY_NOTICES.txt": "resources/runtime/THIRD_PARTY_NOTICES.txt"
       },
       "minimumSystemVersion": "12.0",
-      "hardenedRuntime": true
+      "hardenedRuntime": true,
+      "entitlements": "Entitlements.plist"
     }
   }
 }

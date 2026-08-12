@@ -25,7 +25,7 @@
     "check:audit": "npm audit --audit-level=high && cargo audit --file src-tauri/Cargo.lock",
     "check": "npm run build && npm run check:shiny && npm run check:rust && npm run check:audit",
     "release:windows": "node scripts/release_preflight.mjs windows && npm run check && npm run prepare:runtime && npm run smoke:runtime && tauri build --no-bundle && npm run export:portable",
-    "release:macos": "node scripts/release_preflight.mjs macos && npm run check && npm run prepare:runtime && npm run smoke:runtime && tauri build --bundles app --config src-tauri/tauri.macos.conf.json && node scripts/verify_macos_bundle.mjs && npm run export:portable"
+    "release:macos": "node scripts/release_macos_portable.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.11.4",
