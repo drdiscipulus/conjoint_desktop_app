@@ -11,6 +11,10 @@ permissions:
 jobs:
   quality:
     name: ${{ matrix.os }} quality
+    env:
+      # renv 1.2 installs with four parallel jobs by default. A serial restore
+      # avoids dependants being built before their compiled dependencies exist.
+      RENV_CONFIG_INSTALL_JOBS: 1
     strategy:
       fail-fast: false
       matrix:
@@ -34,6 +38,17 @@ jobs:
           r-version: "4.5.3"
           use-public-rspm: true
 
+      - name: Install macOS R build prerequisites
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew install gettext
+          GETTEXT_PREFIX="$(brew --prefix gettext)"
+          echo "CPPFLAGS=-I${GETTEXT_PREFIX}/include" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L${GETTEXT_PREFIX}/lib" >> "$GITHUB_ENV"
+          echo "PKG_CONFIG_PATH=${GETTEXT_PREFIX}/lib/pkgconfig" >> "$GITHUB_ENV"
+          echo "${GETTEXT_PREFIX}/bin" >> "$GITHUB_PATH"
+
       - uses: r-lib/actions/setup-renv@v2
         with:
           working-directory: src-tauri/resources/shiny-app
@@ -49,8 +64,12 @@ jobs:
   rustsec:
     name: RustSec audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
     steps:
       - uses: actions/checkout@v4
       - uses: rustsec/audit-check@v2.0.0
         with:
-          lockfile: src-tauri/Cargo.lock
+          token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: src-tauri
