@@ -15,6 +15,10 @@ jobs:
       # Let pak resolve and install the lockfile dependency graph. This avoids
       # source packages being built before their dependencies on clean runners.
       RENV_CONFIG_PAK_ENABLED: true
+      # Unit tests do not stage the platform runtimes required only for release
+      # bundles (notably bundle-runtime/R.framework on macOS).
+      TAURI_CONFIG: >-
+        {"bundle":{"active":false,"resources":[],"macOS":{"frameworks":[]}}}
     strategy:
       fail-fast: false
       matrix:
