@@ -20,7 +20,7 @@
     "smoke:runtime": "node scripts/smoke_bundled_runtime.mjs",
     "tauri:dev": "tauri dev",
     "export:portable": "node scripts/export_portable.mjs",
-    "check:shiny": "Rscript src-tauri/resources/shiny-app/scripts/check_app.R",
+    "check:shiny": "cd src-tauri/resources/shiny-app && Rscript scripts/check_app.R",
     "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo test --manifest-path src-tauri/Cargo.toml && cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings",
     "check:audit": "npm audit --audit-level=high && cargo audit --file src-tauri/Cargo.lock",
     "check": "npm run build && npm run check:shiny && npm run check:rust && npm run check:audit",
