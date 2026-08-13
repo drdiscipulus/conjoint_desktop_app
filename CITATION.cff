@@ -8,7 +8,7 @@ authors:
 repository-code: "https://github.com/drdiscipulus/conjoint_desktop_app"
 url: "https://shiny.drdiscipulus.de/conjoint_app/"
 license: "GPL-3.0-only"
-version: "0.2.0"
+version: "1.0.0"
 preferred-citation:
   type: article
   title: "Test-Retest Reliability in Metric Conjoint Experiments: A New Workflow to Evaluate Confidence in Model Results"

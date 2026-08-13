@@ -32,7 +32,7 @@ Update the same version in:
 - `CITATION.cff`, if the software release version should be cited
 - `CHANGELOG.md`
 
-Use a version such as `0.2.0` and a matching Git tag such as `v0.2.0`. Commit the version bump before running a release command; the preflight intentionally rejects a dirty worktree.
+Use a version such as `1.0.0` and a matching Git tag such as `v1.0.0`. Commit the version bump before running a release command; the preflight intentionally rejects a dirty worktree.
 
 ## Windows x64
 

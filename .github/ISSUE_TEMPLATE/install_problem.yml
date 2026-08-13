@@ -13,7 +13,7 @@ body:
     id: asset
     attributes:
       label: Downloaded asset
-      placeholder: "Conjoint-Companion-v0.1.0-windows-x64.zip"
+      placeholder: "Conjoint-Companion-v1.0.0-windows-x64.zip"
     validations:
       required: true
   - type: dropdown
