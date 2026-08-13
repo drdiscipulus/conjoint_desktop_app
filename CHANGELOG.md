@@ -2,7 +2,7 @@
 
 All notable changes to Conjoint Companion Desktop are documented here.
 
-## 0.2.0 - Unreleased
+## 0.2.0 - 2026-08-14
 
 - Correct test-retest pairing by respondent and profile, independent of row order.
 - Add explicit handling and reporting for partial profile replication and incomplete respondents.
