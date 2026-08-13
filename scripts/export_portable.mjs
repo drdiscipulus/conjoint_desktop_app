@@ -99,6 +99,14 @@ function exportWindows() {
     throw new Error(`Release executable not found at ${executablePath}. Run npm run tauri:build first.`);
   }
 
+  const unexpectedRenvOutput = path.join(releaseRoot, "resources", "shiny-app", "renv");
+  if (existsSync(unexpectedRenvOutput)) {
+    throw new Error(
+      `Refusing to export stale Shiny renv output at ${unexpectedRenvOutput}. ` +
+      "Run npm run clean:release-output and rebuild the Tauri application."
+    );
+  }
+
   removeAndCreate(artifactsRoot);
   const artifactBaseName = `Conjoint-Companion-v${packageJson.version}-${platformLabel()}`;
   const portableRoot = path.join(stagingRoot, artifactBaseName);

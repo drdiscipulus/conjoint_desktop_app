@@ -226,6 +226,7 @@ function main() {
   runNpmScript("prepare:runtime");
   runNpmScript("check");
   runNpmScript("smoke:runtime");
+  runNpmScript("clean:release-output");
   run(
     "npx",
     ["tauri", "build", "--bundles", "app", "--config", "src-tauri/tauri.macos.conf.json"],

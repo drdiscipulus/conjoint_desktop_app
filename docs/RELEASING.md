@@ -45,6 +45,8 @@ npm run release:windows
 
 This command runs the full checks, stages R 4.5.3 and the locked R library, smoke-tests the bundled runtime, builds the binary, and exports an unsigned portable ZIP under `release-artifacts/windows-x64`. The Windows archive is intentionally unsigned; state this in the GitHub release notes.
 
+The release workflows remove Tauri's generated release resources before each native build. This prevents files from an older resource configuration, especially a project-local `renv/library`, from leaking into a new archive. The Windows exporter also rejects such stale output if it is detected.
+
 ## macOS Apple Silicon
 
 Set signing and notarization credentials in the local shell environment, or copy `.env.release.local.example` to the ignored file `.env.release.local` and fill it locally:
