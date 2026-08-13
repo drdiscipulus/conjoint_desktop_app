@@ -118,15 +118,17 @@ function isMachO(filePath) {
 }
 
 function signNativePath(targetPath) {
-  run("codesign", [
+  const args = [
     "--force",
     "--options",
     "runtime",
     "--timestamp",
-    "--sign",
-    releaseEnv.APPLE_SIGNING_IDENTITY,
-    targetPath
-  ]);
+  ];
+  if (targetPath.endsWith(path.join("Resources", "bin", "exec", "R"))) {
+    args.push("--entitlements", entitlementsPath);
+  }
+  args.push("--sign", releaseEnv.APPLE_SIGNING_IDENTITY, targetPath);
+  run("codesign", args);
 }
 
 function signBundledNativeCode() {
