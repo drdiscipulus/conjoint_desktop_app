@@ -115,13 +115,13 @@ observeEvent(input$desktop_download_request, {
       "download_csv" = desktop_save_download(
         "demo_data.csv",
         function(path) {
-          write.csv(read.csv("demo_data.csv"), row.names = FALSE, path)
+          copy_bundled_demo_file("demo_data.csv", path)
         }
       ),
       "download_xlsx" = desktop_save_download(
         "demo_data.xlsx",
         function(path) {
-          openxlsx::write.xlsx(openxlsx::read.xlsx("demo_data.xlsx"), path, overwrite = TRUE)
+          copy_bundled_demo_file("demo_data.xlsx", path)
         }
       ),
       "download_results_xlsx" = desktop_save_download(

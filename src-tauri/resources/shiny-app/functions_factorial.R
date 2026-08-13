@@ -196,18 +196,37 @@ oa_candidate_names <- function(attributes, rgt3, prefilter_gr_below_four = FALSE
 }
 
 
-find_resolution_four_oa <- function(attributes, att_names, candidate_names) {
+find_minimum_resolution_oa <- function(attributes, att_names, candidate_names, minimum_resolution) {
   for (candidate_name in candidate_names) {
     array <- load_oa_catalogue_entry(candidate_name)
     design <- oa.design(array, nlevels = attributes, columns = "min3", factor.names = att_names)
     resolution <- GR(design, digits = 2)$GR
 
-    if (resolution >= 4) {
+    if (resolution >= minimum_resolution) {
       return(design)
     }
   }
 
   NULL
+}
+
+
+resolution_five_candidate_names <- function(attributes, full_factorial_size, max_candidates = 100) {
+  show.oas(
+    nlevels = attributes,
+    regular = "all",
+    GRgt3 = "all",
+    Rgt3 = TRUE,
+    show = 0,
+    parents.only = FALSE,
+    showGRs = TRUE,
+    showmetrics = TRUE,
+    digits = 2
+  ) |>
+    filter(lineage == "", GR >= 5, nruns < full_factorial_size) |>
+    arrange(nruns) |>
+    slice_head(n = max_candidates) |>
+    pull(name)
 }
 
 
@@ -230,7 +249,7 @@ get_n_level_fractional <- function(attributes, criterion, type = NULL) {
       rgt3 = FALSE,
       prefilter_gr_below_four = TRUE
     )
-    design <- find_resolution_four_oa(attributes, att_names, candidate_names)
+    design <- find_minimum_resolution_oa(attributes, att_names, candidate_names, 4)
 
     # Look up resolution 4 arrays if res is null
     if (is.null(design)) {
@@ -239,11 +258,29 @@ get_n_level_fractional <- function(attributes, criterion, type = NULL) {
         rgt3 = TRUE,
         prefilter_gr_below_four = FALSE
       )
-      design <- find_resolution_four_oa(attributes, att_names, candidate_names)
+      design <- find_minimum_resolution_oa(attributes, att_names, candidate_names, 4)
     }
 
     if (is.null(design)) {
       stop("No array exists.", call. = FALSE)
+    }
+
+    res <- format_n_level_design_result(design)
+  }
+
+  if (criterion == "two-way-clear") {
+    candidate_names <- resolution_five_candidate_names(
+      attributes = attributes,
+      full_factorial_size = prod(attributes)
+    )
+    design <- find_minimum_resolution_oa(attributes, att_names, candidate_names, 5)
+
+    if (is.null(design)) {
+      design <- fac.design(
+        nlevels = attributes,
+        factor.names = att_names,
+        replications = 1
+      )
     }
 
     res <- format_n_level_design_result(design)

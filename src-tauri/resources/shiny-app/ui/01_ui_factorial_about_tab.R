@@ -36,6 +36,7 @@ tabPanel(
         tags$li("Enter the number of levels for each attribute separated by commas, for example 4,4,4 or 2,4,4,3."),
         tags$li("The app currently supports up to 7 attributes and up to 4 levels per attribute."),
         tags$li("Full designs use all combinations. Fractional designs search mixed-level orthogonal arrays through DoE.base."),
+        tags$li("For fractional designs, choose generalized Resolution III, IV, or V. Resolution IV keeps main effects clear from two-way interactions. Resolution V additionally keeps two-way interactions clear from one another, but usually requires more profiles."),
         tags$li("The app reports the full factorial size, the generated number of profiles, and whether a selected fractional design actually reduced the number of profiles."),
         tags$li("The interaction coverage table reports pairwise level-combination coverage and balance. It is not an aliasing or confounding diagnostic."),
         tags$li("The search for suitable fractional mixed-level designs can take time for some combinations, and some settings may still produce a full-factorial-sized design.")
@@ -45,7 +46,7 @@ tabPanel(
         tags$li("Full factorial designs are generated with fac.design()."),
         tags$li("Two-level fractional designs are generated with FrF2()."),
         tags$li("Mixed-level fractional designs use oa.design() and related orthogonal-array search utilities."),
-        tags$li("Classical Resolution III/IV/V applies to regular two-level fractional factorial designs. The N-level section uses an orthogonal-array criterion and pairwise coverage diagnostics instead.")
+        tags$li("Two-level designs use classical resolution. N-level and mixed-level orthogonal arrays use generalized resolution as implemented by DoE.base.")
       ),
       tags$h4("Further Reading"),
       tags$ul(

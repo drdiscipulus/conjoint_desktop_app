@@ -200,20 +200,24 @@ output$n_level_coverage_table <- renderReactable({
     striped = TRUE,
     bordered = TRUE,
     compact = TRUE,
-    defaultPageSize = 20,
+    defaultPageSize = 10,
     theme = app_reactable_theme(),
     defaultColDef = colDef(
       align = "left",
-      minWidth = 120
+      minWidth = 0
     ),
     columns = list(
       interaction = colDef(
         name = "Interaction",
-        minWidth = 180
+        minWidth = 0,
+        class = "coverage-col-interaction",
+        headerClass = "coverage-col-interaction"
       ),
       status = colDef(
         name = "Status",
-        minWidth = 125,
+        minWidth = 0,
+        class = "coverage-col-status",
+        headerClass = "coverage-col-status",
         cell = function(value) {
           tags$span(
             class = paste("coverage-status", paste0("coverage-status-", gsub(" ", "-", value, fixed = TRUE))),
@@ -223,27 +227,37 @@ output$n_level_coverage_table <- renderReactable({
       ),
       observed_combinations = colDef(
         name = "Observed",
-        minWidth = 110,
+        minWidth = 0,
+        class = "coverage-col-metric",
+        headerClass = "coverage-col-metric",
         align = "center"
       ),
       minimum_profiles = colDef(
         name = "Lower Bound",
-        minWidth = 120,
+        minWidth = 0,
+        class = "coverage-col-metric",
+        headerClass = "coverage-col-metric",
         align = "center"
       ),
       min_cell_count = colDef(
         name = "Min Count",
-        minWidth = 105,
+        minWidth = 0,
+        class = "coverage-col-metric",
+        headerClass = "coverage-col-metric",
         align = "center"
       ),
       max_cell_count = colDef(
         name = "Max Count",
-        minWidth = 105,
+        minWidth = 0,
+        class = "coverage-col-metric",
+        headerClass = "coverage-col-metric",
         align = "center"
       ),
       interpretation = colDef(
         name = "Interpretation",
-        minWidth = 430
+        minWidth = 0,
+        class = "coverage-col-interpretation",
+        headerClass = "coverage-col-interpretation"
       )
     )
   )
@@ -306,8 +320,11 @@ output$n_level <- renderUI({
       ),
       tabPanel(
         "Interaction Coverage",
-        div(class = "result-summary", textOutput("n_level_coverage_summary")),
-        reactableOutput("n_level_coverage_table") %>% withSpinner(type = 6, color = "#009260")
+        div(
+          class = "n-level-coverage-panel",
+          div(class = "result-summary", textOutput("n_level_coverage_summary")),
+          reactableOutput("n_level_coverage_table") %>% withSpinner(type = 6, color = "#009260")
+        )
       )
     )
   )

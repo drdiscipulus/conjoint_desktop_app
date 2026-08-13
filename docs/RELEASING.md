@@ -51,14 +51,15 @@ Set signing and notarization credentials in the local shell environment, or copy
 
 ```sh
 export APPLE_SIGNING_IDENTITY="Developer ID Application: ..."
-export APPLE_ID="..."
-export APPLE_PASSWORD="..."
-export APPLE_TEAM_ID="..."
+xcrun notarytool store-credentials "conjoint-companion-notary" \
+  --apple-id "your-apple-id@example.com" \
+  --team-id "TEAMID"
+export APPLE_NOTARY_PROFILE="conjoint-companion-notary"
 npm ci
 npm run release:macos
 ```
 
-Apple ID credentials are the documented default. The release script also accepts App Store Connect API credentials through `APPLE_API_ISSUER`, `APPLE_API_KEY`, and `APPLE_API_KEY_PATH`.
+`notarytool store-credentials` prompts securely for an app-specific password and validates the profile before saving it in the login keychain. The release script also accepts direct Apple ID credentials through `APPLE_ID`, `APPLE_PASSWORD`, and `APPLE_TEAM_ID`, or App Store Connect API credentials through `APPLE_API_ISSUER`, `APPLE_API_KEY`, and `APPLE_API_KEY_PATH`.
 
 The command copies the complete CRAN `R.framework`, restores an ARM64 package library, rewrites absolute framework references to app-relative references, and builds an `.app` with hardened runtime. It signs every embedded Mach-O file and the app with the same Developer ID before notarization. Verification checks architectures and framework references, the embedded R runtime, `codesign`, Gatekeeper, and the stapled notarization ticket before creating the ZIP.
 

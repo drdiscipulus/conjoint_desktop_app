@@ -126,6 +126,9 @@ function ensureInsideGeneratedRoots(targetPath) {
 
 function runtimeFilter(sourcePath) {
   const name = path.basename(sourcePath);
+  if (name.endsWith(".dSYM")) {
+    return false;
+  }
   if (["doc", "tests", "src"].includes(name)) {
     return false;
   }
@@ -229,13 +232,32 @@ function patchMacFrameworkReferences() {
 
   const rExecutable = path.join(rFrameworkDestination, "Resources", "bin", "exec", "R");
   try {
-    execFileSync("install_name_tool", ["-add_rpath", "@executable_path/../../../..", rExecutable]);
+    execFileSync("install_name_tool", ["-add_rpath", "@executable_path/../../../../../..", rExecutable]);
   } catch (error) {
     const message = String(error.stderr || error.message || error);
     if (!message.includes("would duplicate path")) {
       throw error;
     }
   }
+}
+
+function adHocSignMacRuntime() {
+  const nativeFiles = [
+    ...listFiles(rFrameworkDestination),
+    ...listFiles(libraryDestination)
+  ]
+    .filter(isMachO)
+    .sort((left, right) => right.split(path.sep).length - left.split(path.sep).length);
+
+  for (const filePath of nativeFiles) {
+    execFileSync("codesign", ["--force", "--sign", "-", filePath], {
+      stdio: "ignore"
+    });
+  }
+  execFileSync("codesign", ["--force", "--sign", "-", rFrameworkDestination], {
+    stdio: "ignore"
+  });
+  console.log(`Ad-hoc signed ${nativeFiles.length} staged native files for smoke testing.`);
 }
 
 function copyMacRuntime(rHome) {
@@ -248,8 +270,34 @@ function copyMacRuntime(rHome) {
   cpSync(frameworkSource, rFrameworkDestination, {
     recursive: true,
     force: true,
-    verbatimSymlinks: true
+    verbatimSymlinks: true,
+    filter: runtimeFilter
   });
+
+  // CRAN's framework includes this convenience symlink, but it is not part of
+  // Apple's sealed framework layout and prevents codesign from sealing the
+  // framework container. R loads these files through Resources/lib instead.
+  rmSync(path.join(rFrameworkDestination, "Libraries"), { force: true });
+}
+
+function removeDebugSymbolBundles(directory) {
+  ensureInsideGeneratedRoots(directory);
+
+  function walk(current) {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const currentPath = path.join(current, entry.name);
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      if (entry.name.endsWith(".dSYM")) {
+        rmSync(currentPath, { recursive: true, force: true });
+      } else {
+        walk(currentPath);
+      }
+    }
+  }
+
+  walk(directory);
 }
 
 function restoreLibrary() {
@@ -385,7 +433,10 @@ function main() {
   restoreLibrary();
 
   if (process.platform === "darwin") {
+    removeDebugSymbolBundles(rFrameworkDestination);
+    removeDebugSymbolBundles(libraryDestination);
     patchMacFrameworkReferences();
+    adHocSignMacRuntime();
   }
 
   writeThirdPartyNotices(rInfo);

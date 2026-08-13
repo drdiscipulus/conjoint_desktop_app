@@ -74,6 +74,58 @@ validate_upload_file <- function(input_file,
   )
 }
 
+desktop_upload_file <- function(payload, destination_dir,
+                                max_size = APP_MAX_UPLOAD_SIZE) {
+  if (!is.list(payload) ||
+      !all(c("name", "size", "type", "data") %in% names(payload))) {
+    stop("The desktop upload request is incomplete. Please select the file again.", call. = FALSE)
+  }
+
+  display_name <- sanitize_display_filename(payload$name)
+  extension <- upload_extension(display_name)
+  if (!extension %in% APP_ALLOWED_UPLOAD_EXTENSIONS) {
+    stop("Only .csv and .xlsx files are accepted.", call. = FALSE)
+  }
+
+  size <- suppressWarnings(as.numeric(payload$size))
+  if (length(size) != 1L || is.na(size) || size <= 0) {
+    stop("The uploaded file is empty or its size is invalid.", call. = FALSE)
+  }
+  if (size > max_size) {
+    stop("The uploaded file is larger than the 5 MB limit.", call. = FALSE)
+  }
+
+  encoded <- payload$data
+  max_encoded_size <- 4 * ceiling(max_size / 3)
+  if (!is.character(encoded) || length(encoded) != 1L ||
+      is.na(encoded) || nchar(encoded, type = "bytes") > max_encoded_size) {
+    stop("The desktop upload payload is invalid or too large.", call. = FALSE)
+  }
+
+  bytes <- try(jsonlite::base64_dec(encoded), silent = TRUE)
+  if (inherits(bytes, "try-error") || length(bytes) != size) {
+    stop("The uploaded file was not transferred completely. Please select it again.", call. = FALSE)
+  }
+
+  destination <- session_file_path(
+    destination_dir,
+    paste0("desktop_upload.", extension)
+  )
+  con <- file(destination, open = "wb")
+  on.exit(close(con), add = TRUE)
+  writeBin(bytes, con)
+
+  input_file <- data.frame(
+    name = display_name,
+    size = size,
+    type = as.character(payload$type %||% ""),
+    datapath = destination,
+    stringsAsFactors = FALSE
+  )
+  validate_upload_file(input_file, max_size = max_size)
+  input_file
+}
+
 validate_upload_dimensions <- function(dat,
                                        max_rows = APP_MAX_UPLOAD_ROWS,
                                        max_columns = APP_MAX_UPLOAD_COLUMNS) {

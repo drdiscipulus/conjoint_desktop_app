@@ -9,6 +9,7 @@ session$onSessionEnded(function() {
 # check and compute: are both used as triggers/blocks
 rv <- reactiveValues(
   dat = NULL,
+  upload_file = NULL,
   pairs = NULL,
   validation_report = NULL,
   check = NULL,
@@ -27,6 +28,53 @@ shinyjs::disable("download_results_xlsx")
 shinyjs::disable("download_results_csv")
 
 
+# Copy a bundled demo file byte-for-byte. Re-serializing the examples here
+# needlessly depends on parser/writer packages and can alter the sample files.
+copy_bundled_demo_file <- function(filename, destination) {
+  if (!file.copy(filename, destination, overwrite = TRUE)) {
+    stop(paste("Could not copy the bundled demo file:", filename), call. = FALSE)
+  }
+  invisible(destination)
+}
+
+
+begin_data_upload <- function() {
+  rv$check <- NULL
+  rv$compute <- NULL
+  rv$dat <- NULL
+  rv$upload_file <- NULL
+  rv$pairs <- NULL
+  rv$validation_report <- NULL
+  rv$upload_error <- NULL
+  rv$check_error <- NULL
+  rv$inspect <- NULL
+  shinyjs::disable("check_data")
+  shinyjs::disable("compute")
+  shinyjs::disable("reset")
+  shinyjs::disable("show_table")
+  shinyjs::disable("show_class")
+  shinyjs::disable("download_results_xlsx")
+  shinyjs::disable("download_results_csv")
+}
+
+
+finish_data_upload <- function(upload_res, upload_file) {
+  if (inherits(upload_res, "try-error")) {
+    rv$upload_error <- conditionMessage(attr(upload_res, "condition"))
+    return(invisible(FALSE))
+  }
+
+  rv$upload_error <- NULL
+  rv$upload_file <- upload_file
+  rv$dat <- upload_res
+  shinyjs::enable("check_data")
+  shinyjs::enable("reset")
+  shinyjs::enable("show_table")
+  shinyjs::enable("show_class")
+  invisible(TRUE)
+}
+
+
 # Download csv demo data set
 output$download_csv <- downloadHandler(
   filename = function() {
@@ -34,8 +82,7 @@ output$download_csv <- downloadHandler(
     paste0("demo_data.csv")
   },
   content = function(file) {
-    # Read file from disk and write it to user
-    write.csv(read.csv("demo_data.csv"), row.names = FALSE, file)
+    copy_bundled_demo_file("demo_data.csv", file)
   }
 )
 
@@ -47,8 +94,7 @@ output$download_xlsx <- downloadHandler(
     paste0("demo_data.xlsx")
   },
   content = function(file) {
-    # Read file from disk and write it to user
-    openxlsx::write.xlsx(openxlsx::read.xlsx("demo_data.xlsx"), file)
+    copy_bundled_demo_file("demo_data.xlsx", file)
   }
 )
 
@@ -99,49 +145,47 @@ output$download_results_csv <- downloadHandler(
 # This function tries to read a supplied .csv or .xlsx file
 # Throws a warning or error if something is wrong with the file
 observeEvent(input$upload_data, {
-  # Set check button to null when new data is uploaded
-  rv$check <- NULL
-  # Set compute button to null when new data is uploaded
-  rv$compute <- NULL
-  # Set data to null when new data is uploaded
-  rv$dat <- NULL
-  rv$pairs <- NULL
-  rv$validation_report <- NULL
-  rv$check_error <- NULL
-  rv$inspect <- NULL
-  shinyjs::disable("check_data")
-  shinyjs::disable("compute")
-  shinyjs::disable("reset")
-  shinyjs::disable("show_table")
-  shinyjs::disable("show_class")
+  begin_data_upload()
 
   # If an uploaded file exists
   if (!is.null(input$upload_data)) {
     upload_res <- file_upload(input$upload_data)
-    shinyjs::disable("download_results_xlsx")
-    shinyjs::disable("download_results_csv")
-
-    if (inherits(upload_res, "try-error")) {
-      rv$upload_error <- conditionMessage(attr(upload_res, "condition"))
-      rv$dat <- NULL
-    } else {
-      rv$upload_error <- NULL
-      rv$dat <- upload_res
-      shinyjs::enable("check_data")
-      shinyjs::enable("reset")
-      shinyjs::enable("show_table")
-      shinyjs::enable("show_class")
-    }
+    finish_data_upload(upload_res, input$upload_data)
   }
 })
 
+
+# Desktop-only upload transport. The Tauri bridge sends the selected file over
+# the existing local Shiny connection, avoiding WebKit's failing upload POST.
+observeEvent(input$desktop_upload_data, {
+  begin_data_upload()
+
+  upload_file <- try(
+    desktop_upload_file(input$desktop_upload_data, session_dir),
+    silent = TRUE
+  )
+  if (inherits(upload_file, "try-error")) {
+    rv$upload_error <- conditionMessage(attr(upload_file, "condition"))
+    return(NULL)
+  }
+
+  upload_res <- file_upload(upload_file)
+  finish_data_upload(upload_res, upload_file)
+}, ignoreInit = TRUE)
+
+
+observeEvent(input$desktop_upload_error, {
+  begin_data_upload()
+  rv$upload_error <- input$desktop_upload_error$message %||%
+    "The selected file could not be read."
+}, ignoreInit = TRUE)
 
 # Show compact workflow states under their corresponding sidebar steps
 output$upload_status <- renderUI({
   if (!is.null(rv$upload_error)) {
     return(tags$div(class = "status-badge status-error", icon("exclamation-triangle"), rv$upload_error))
   }
-  if (!is.null(rv$dat) || !is.null(input$upload_data)) {
+  if (!is.null(rv$dat) || !is.null(rv$upload_file)) {
     return(tags$div(class = "status-badge status-uploaded", icon("file-alt"), "File uploaded"))
   }
   NULL
@@ -163,6 +207,10 @@ output$check_status <- renderUI({
 
 output$validation_report <- renderUI({
   req(rv$check == "okay", rv$validation_report)
+  if (identical(rv$compute, "go")) {
+    return(NULL)
+  }
+
   report <- rv$validation_report
   excluded_profile_text <- if (length(report$excluded_profiles) > 0L) {
     paste(report$excluded_profiles, collapse = ", ")
@@ -233,10 +281,10 @@ observeEvent(input$show_class, {
 
 # Evaluate the uploaded data against the reliability workflow requirements
 observeEvent(input$check_data, {
-  if (is.null(input$upload_data)) {
+  if (is.null(rv$upload_file)) {
     rv$check_error <- "Upload a file first"
     return(NULL)
-  } else if (!file.exists(input$upload_data$datapath)) {
+  } else if (!file.exists(rv$upload_file$datapath)) {
     rv$check_error <- "Upload the file again"
     return(NULL)
   } else if (is.null(rv$dat)) {
@@ -624,8 +672,8 @@ output$slope_plot <- renderPlotly({
 
 # Reset status and delete uploaded data
 observeEvent(input$reset, {
-  if (!is.null(input$upload_data) && file.exists(input$upload_data$datapath)) {
-    file.remove(input$upload_data$datapath)
+  if (!is.null(rv$upload_file) && file.exists(rv$upload_file$datapath)) {
+    file.remove(rv$upload_file$datapath)
   }
 
   cleanup_session_dir(session_dir)
@@ -633,6 +681,7 @@ observeEvent(input$reset, {
 
   shinyjs::reset("upload_data")
   rv$dat <- NULL
+  rv$upload_file <- NULL
   rv$pairs <- NULL
   rv$validation_report <- NULL
   rv$check <- NULL

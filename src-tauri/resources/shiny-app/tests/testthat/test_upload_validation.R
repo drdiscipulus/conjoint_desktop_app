@@ -9,6 +9,7 @@ project_file <- function(...) {
 }
 
 source(project_file("R", "upload_validation.R"))
+source(project_file("R", "session_files.R"))
 source(project_file("functions_reliability.R"))
 
 make_upload <- function(name, path, size = file.info(path)$size) {
@@ -49,6 +50,58 @@ test_that("upload dimension validation rejects empty and oversized data", {
     att_2 = 1
   )
   expect_error(validate_upload_dimensions(oversized), "25,000 rows")
+})
+
+test_that("included XLSX demo data is readable and fits upload limits", {
+  demo_path <- project_file("demo_data.xlsx")
+
+  expect_true(file.exists(demo_path))
+  expect_equal(length(openxlsx::getSheetNames(demo_path)), 1L)
+
+  demo_data <- openxlsx::read.xlsx(demo_path, na.strings = c("", "NA"))
+  expect_no_error(validate_upload_dimensions(demo_data))
+  expect_true(all(c("respondent", "round", "profile", "dv") %in% names(demo_data)))
+  expect_true(any(startsWith(names(demo_data), "att_")))
+})
+
+test_that("desktop upload transport reconstructs the selected file exactly", {
+  source_path <- project_file("demo_data.csv")
+  source_bytes <- readBin(source_path, what = "raw", n = file.info(source_path)$size)
+  destination_dir <- tempfile("desktop-upload-")
+  dir.create(destination_dir)
+  destination_dir <- normalizePath(destination_dir, mustWork = TRUE)
+  on.exit(unlink(destination_dir, recursive = TRUE), add = TRUE)
+
+  payload <- list(
+    name = "demo_data.csv",
+    size = length(source_bytes),
+    type = "text/csv",
+    data = jsonlite::base64_enc(source_bytes)
+  )
+  input_file <- desktop_upload_file(payload, destination_dir)
+
+  reconstructed <- readBin(
+    input_file$datapath,
+    what = "raw",
+    n = file.info(input_file$datapath)$size
+  )
+  expect_identical(reconstructed, source_bytes)
+  expect_equal(input_file$name, "demo_data.csv")
+})
+
+test_that("desktop upload transport rejects inconsistent payloads", {
+  destination_dir <- tempfile("desktop-upload-")
+  dir.create(destination_dir)
+  destination_dir <- normalizePath(destination_dir, mustWork = TRUE)
+  on.exit(unlink(destination_dir, recursive = TRUE), add = TRUE)
+
+  expect_error(
+    desktop_upload_file(
+      list(name = "demo_data.csv", size = 99, type = "text/csv", data = "YQ=="),
+      destination_dir
+    ),
+    "not transferred completely"
+  )
 })
 
 test_that("reliability schema validation rejects bad datasets", {

@@ -3,10 +3,13 @@ test_that("N-level fractional generation keeps known profile counts stable", {
 
   cases <- tibble::tribble(
     ~attributes, ~criterion, ~profiles,
+    "3,3,3", "two-way-clear", 27L,
     "3,3,3,3", "main_effects", 9L,
     "3,3,3,3", "two-way", 27L,
+    "3,3,3,3,3", "two-way-clear", 81L,
     "4,4,4,4", "main_effects", 16L,
-    "4,4,4,4", "two-way", 64L
+    "4,4,4,4", "two-way", 64L,
+    "4,4,4,4,4", "two-way-clear", 256L
   )
 
   for (i in seq_len(nrow(cases))) {
@@ -21,6 +24,17 @@ test_that("N-level fractional generation keeps known profile counts stable", {
       info = paste(cases$attributes[[i]], cases$criterion[[i]])
     )
   }
+})
+
+test_that("N-level Resolution V designs reach generalized resolution five", {
+  skip_if_not(exists("get_n_level_fractional"))
+
+  result <- get_n_level_fractional(
+    attributes = "3,3,3,3,3",
+    criterion = "two-way-clear"
+  )
+
+  expect_gte(DoE.base::GR(result$design, digits = 3)$GR, 5)
 })
 
 test_that("N-level fractional generation identifies effectively full designs", {

@@ -70,6 +70,7 @@ function signingOnlyEnv() {
     "APPLE_ID",
     "APPLE_PASSWORD",
     "APPLE_TEAM_ID",
+    "APPLE_NOTARY_PROFILE",
     "APPLE_API_ISSUER",
     "APPLE_API_KEY",
     "APPLE_API_KEY_PATH"
@@ -158,6 +159,16 @@ function signBundledNativeCode() {
 }
 
 function notarizationArgs(archivePath) {
+  if (releaseEnv.APPLE_NOTARY_PROFILE) {
+    return [
+      "notarytool",
+      "submit",
+      archivePath,
+      "--keychain-profile",
+      releaseEnv.APPLE_NOTARY_PROFILE,
+      "--wait"
+    ];
+  }
   if (releaseEnv.APPLE_ID && releaseEnv.APPLE_PASSWORD && releaseEnv.APPLE_TEAM_ID) {
     return [
       "notarytool",
@@ -210,8 +221,8 @@ function appSize() {
 
 function main() {
   run(process.execPath, ["scripts/release_preflight.mjs", "macos"]);
-  runNpmScript("check");
   runNpmScript("prepare:runtime");
+  runNpmScript("check");
   runNpmScript("smoke:runtime");
   run(
     "npx",

@@ -37,7 +37,18 @@
       "icons/icon.icns"
     ],
     "resources": [
-      "resources/**/*"
+      "resources/desktop/run_shiny.R",
+      "resources/runtime/**/*",
+      "resources/shiny-app/app.R",
+      "resources/shiny-app/custom_corr_plot.R",
+      "resources/shiny-app/demo_data.csv",
+      "resources/shiny-app/demo_data.xlsx",
+      "resources/shiny-app/functions_factorial.R",
+      "resources/shiny-app/functions_reliability.R",
+      "resources/shiny-app/R/**/*.R",
+      "resources/shiny-app/server/**/*.R",
+      "resources/shiny-app/ui/**/*.R",
+      "resources/shiny-app/www/**/*"
     ]
   }
 }

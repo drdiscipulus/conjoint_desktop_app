@@ -348,6 +348,9 @@ body {
 
 .workflow-sidebar .btn,
 .workflow-sidebar .btn-default {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   min-height: 32px;
   margin-bottom: 0.35rem;
@@ -355,8 +358,7 @@ body {
   font-size: 0.84rem;
   line-height: 1.2;
   border-radius: 4px;
-  text-align: left;
-  justify-content: flex-start;
+  text-align: center;
 }
 
 .workflow-sidebar .btn .fa,
@@ -458,17 +460,18 @@ body {
   margin-bottom: 0;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
   white-space: nowrap;
 }
 
 .workflow-sidebar .input-group .btn,
 .workflow-sidebar .input-group .btn-default {
+  justify-content: center;
   border-radius: 4px 4px 0 0;
   border-bottom: 0;
 }
 
 .workflow-sidebar .input-group .form-control {
+  justify-content: flex-start;
   background: #ffffff;
   border-color: var(--app-border);
   border-left: 1px solid var(--app-border);
@@ -855,6 +858,51 @@ body {
   color: #9b1f1f;
 }
 
+.n-level-coverage-panel {
+  min-height: min(620px, calc(100vh - 230px));
+}
+
+.n-level-coverage-panel .shiny-spinner-output-container,
+#n_level_coverage_table {
+  min-height: min(520px, calc(100vh - 330px));
+}
+
+#n_level_coverage_table {
+  height: min(520px, calc(100vh - 330px)) !important;
+}
+
+.n-level-coverage-panel .rt-th,
+.n-level-coverage-panel .rt-th-content {
+  white-space: normal !important;
+}
+
+.n-level-coverage-panel .coverage-col-interaction {
+  flex: 1.35 1 0 !important;
+  min-width: 0 !important;
+}
+
+.n-level-coverage-panel .coverage-col-status {
+  flex: 0.8 1 0 !important;
+  min-width: 0 !important;
+}
+
+.n-level-coverage-panel .coverage-col-metric {
+  flex: 0.8 1 0 !important;
+  min-width: 0 !important;
+}
+
+.n-level-coverage-panel .coverage-col-interpretation {
+  flex: 2.2 1 0 !important;
+  min-width: 0 !important;
+}
+
+.n-level-coverage-panel .rt-td-inner,
+.n-level-coverage-panel .rt-th-inner,
+.n-level-coverage-panel .rt-text-content {
+  overflow: visible;
+  white-space: normal;
+}
+
 .table-notes {
   margin-top: 0.55rem;
   color: var(--app-muted);
@@ -1006,6 +1054,16 @@ body {
   .factorial-main-panel {
     padding-left: 0;
     margin-top: 0;
+  }
+
+  .n-level-coverage-panel,
+  .n-level-coverage-panel .shiny-spinner-output-container,
+  #n_level_coverage_table {
+    min-height: 0;
+  }
+
+  #n_level_coverage_table {
+    height: auto !important;
   }
 
 }

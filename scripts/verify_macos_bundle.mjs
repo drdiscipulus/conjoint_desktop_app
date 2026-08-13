@@ -68,18 +68,29 @@ function verifyNoSystemRReferences() {
 
 function verifyBundledR() {
   const rHome = path.join(appPath, "Contents", "Frameworks", "R.framework", "Resources");
-  const rscript = path.join(rHome, "bin", "Rscript");
-  if (!existsSync(rscript)) {
-    throw new Error(`Bundled Rscript is missing at ${rscript}.`);
+  const rExecutable = path.join(rHome, "bin", "exec", "R");
+  if (!existsSync(rExecutable)) {
+    throw new Error(`Bundled R executable is missing at ${rExecutable}.`);
   }
-  const library = path.join(appPath, "Contents", "Resources", "runtime", "R-library");
+  const resourceCandidates = [
+    path.join(appPath, "Contents", "Resources", "resources"),
+    path.join(appPath, "Contents", "Resources")
+  ];
+  const resourceRoot = resourceCandidates.find((candidate) =>
+    existsSync(path.join(candidate, "runtime", "R-library")) &&
+    existsSync(path.join(candidate, "shiny-app", "app.R"))
+  );
+  if (!resourceRoot) {
+    throw new Error("Bundled Shiny app and R library could not be located in the app resources.");
+  }
+  const library = path.join(resourceRoot, "runtime", "R-library");
   const expression = [
     "required <- c('shiny', 'FrF2', 'DoE.base', 'psych', 'plotly', 'openxlsx')",
     "missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]",
     "if (length(missing)) stop(paste('Missing packages:', paste(missing, collapse = ', ')))",
     "cat(as.character(getRversion()))"
   ].join("; ");
-  const version = run(rscript, ["-e", expression], {
+  const version = run(rExecutable, ["--no-echo", "--no-restore", "-e", expression], {
     env: {
       ...process.env,
       R_HOME: rHome,

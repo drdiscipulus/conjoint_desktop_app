@@ -22,7 +22,7 @@ use std::os::windows::process::CommandExt;
 const HOST: &str = "127.0.0.1";
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
-const SHINY_DOWNLOAD_LINK_SCRIPT: &str = r#"
+const SHINY_DESKTOP_BRIDGE_SCRIPT: &str = r#"
 (() => {
   if (window.__CONJOINT_DESKTOP_DOWNLOADS_BOUND) {
     return;
@@ -64,6 +64,46 @@ const SHINY_DOWNLOAD_LINK_SCRIPT: &str = r#"
     }
   }, true);
 
+  // WebKit occasionally fails Shiny's session-specific HTTP upload request.
+  // In the desktop build, send the selected file over the existing local
+  // Shiny WebSocket instead. The server still applies the same type, size,
+  // dimension, and schema validation as it does for browser uploads.
+  document.addEventListener('change', (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || input.id !== 'upload_data' || input.type !== 'file') {
+      return;
+    }
+
+    const file = input.files && input.files[0];
+    if (!file || !window.Shiny || !window.Shiny.setInputValue) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      const separator = result.indexOf(',');
+      const encoded = separator >= 0 ? result.slice(separator + 1) : '';
+      window.Shiny.setInputValue('desktop_upload_data', {
+        name: file.name,
+        size: file.size,
+        type: file.type || '',
+        data: encoded,
+        nonce: Date.now() + Math.random()
+      }, { priority: 'event' });
+    };
+    reader.onerror = () => {
+      window.Shiny.setInputValue('desktop_upload_error', {
+        message: 'The selected file could not be read.',
+        nonce: Date.now() + Math.random()
+      }, { priority: 'event' });
+    };
+    reader.readAsDataURL(file);
+  }, true);
+
   const startObserver = () => {
     normalizeDownloadLinks();
     if (window.MutationObserver && document.documentElement) {
@@ -95,6 +135,7 @@ struct ResourceLayout {
     shiny_app: PathBuf,
     launch_script: PathBuf,
     rscript: PathBuf,
+    uses_r_executable: bool,
     r_home: Option<PathBuf>,
     r_library: Option<PathBuf>,
     download_dir: PathBuf,
@@ -134,7 +175,7 @@ fn create_main_window(app: &tauri::App) -> tauri::Result<()> {
 
     let app_handle = app.handle().clone();
     WebviewWindowBuilder::from_config(app, window_config)?
-        .initialization_script(SHINY_DOWNLOAD_LINK_SCRIPT)
+        .initialization_script(SHINY_DESKTOP_BRIDGE_SCRIPT)
         .on_download(handle_download)
         .on_navigation(move |url| {
             let port = current_shiny_port(&app_handle);
@@ -366,7 +407,14 @@ fn start_and_open_shiny(app: tauri::AppHandle) -> Result<(), String> {
 fn resolve_resource_layout(app: &tauri::AppHandle) -> Result<ResourceLayout, String> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let dev_root = manifest_dir.join("resources");
-    let bundled_root = app.path().resource_dir().ok();
+    let bundled_root = app.path().resource_dir().ok().map(|resource_dir| {
+        let nested_resources = resource_dir.join("resources");
+        if nested_resources.join("shiny-app").join("app.R").is_file() {
+            nested_resources
+        } else {
+            resource_dir
+        }
+    });
 
     let root = if cfg!(debug_assertions) && dev_root.join("desktop").join("run_shiny.R").is_file() {
         dev_root
@@ -390,6 +438,7 @@ fn resolve_resource_layout(app: &tauri::AppHandle) -> Result<ResourceLayout, Str
     }
 
     let r_home = bundled_r_home(&root, &manifest_dir);
+    let uses_r_executable = cfg!(target_os = "macos") && r_home.is_some();
     let rscript = rscript_candidates(&root, r_home.as_deref())
         .into_iter()
         .find(|candidate| candidate.is_file())
@@ -410,6 +459,7 @@ fn resolve_resource_layout(app: &tauri::AppHandle) -> Result<ResourceLayout, Str
         shiny_app,
         launch_script,
         rscript,
+        uses_r_executable,
         r_home,
         r_library,
         download_dir,
@@ -419,22 +469,26 @@ fn resolve_resource_layout(app: &tauri::AppHandle) -> Result<ResourceLayout, Str
 fn bundled_r_home(root: &Path, manifest_dir: &Path) -> Option<PathBuf> {
     #[cfg(target_os = "macos")]
     {
+        if let Some(bundled_framework) = root
+            .ancestors()
+            .take(4)
+            .map(|ancestor| {
+                ancestor
+                    .join("Frameworks")
+                    .join("R.framework")
+                    .join("Resources")
+            })
+            .find(|candidate| candidate.is_dir())
+        {
+            return Some(bundled_framework);
+        }
+
         let development_framework = manifest_dir
             .join("bundle-runtime")
             .join("R.framework")
             .join("Resources");
-        if development_framework.is_dir() {
+        if cfg!(debug_assertions) && development_framework.is_dir() {
             return Some(development_framework);
-        }
-
-        if let Some(contents_dir) = root.parent() {
-            let bundled_framework = contents_dir
-                .join("Frameworks")
-                .join("R.framework")
-                .join("Resources");
-            if bundled_framework.is_dir() {
-                return Some(bundled_framework);
-            }
         }
     }
 
@@ -449,6 +503,8 @@ fn rscript_candidates(root: &Path, r_home: Option<&Path>) -> Vec<PathBuf> {
         if cfg!(windows) {
             candidates.push(r_home.join("bin").join("Rscript.exe"));
             candidates.push(r_home.join("bin").join("x64").join("Rscript.exe"));
+        } else if cfg!(target_os = "macos") {
+            candidates.push(r_home.join("bin").join("exec").join("R"));
         } else {
             candidates.push(r_home.join("bin").join("Rscript"));
         }
@@ -469,8 +525,15 @@ fn rscript_candidates(root: &Path, r_home: Option<&Path>) -> Vec<PathBuf> {
 
 fn start_shiny_process(layout: &ResourceLayout, port: u16) -> Result<Child, String> {
     let mut command = Command::new(&layout.rscript);
+    if layout.uses_r_executable {
+        command
+            .arg("--no-echo")
+            .arg("--no-restore")
+            .arg(format!("--file={}", layout.launch_script.display()));
+    } else {
+        command.arg(&layout.launch_script);
+    }
     command
-        .arg(&layout.launch_script)
         .current_dir(&layout.root)
         .env("CONJOINT_SHINY_APP_DIR", &layout.shiny_app)
         .env("CONJOINT_SHINY_HOST", HOST)

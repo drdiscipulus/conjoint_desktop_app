@@ -13,24 +13,33 @@ const library = path.join(resourcesRoot, "runtime", "R-library");
 function runtimeLayout() {
   if (process.platform === "win32") {
     const rHome = path.join(resourcesRoot, "runtime", "R");
-    return { rHome, rscript: path.join(rHome, "bin", "Rscript.exe") };
+    return {
+      rHome,
+      executable: path.join(rHome, "bin", "Rscript.exe"),
+      scriptArgs: (scriptPath) => [scriptPath]
+    };
   }
   if (process.platform === "darwin") {
     const rHome = path.join(repoRoot, "src-tauri", "bundle-runtime", "R.framework", "Resources");
-    return { rHome, rscript: path.join(rHome, "bin", "Rscript") };
+    return {
+      rHome,
+      executable: path.join(rHome, "bin", "exec", "R"),
+      scriptArgs: (scriptPath) => ["--no-echo", "--no-restore", `--file=${scriptPath}`]
+    };
   }
   throw new Error(`Bundled runtime smoke tests are not supported on ${process.platform}.`);
 }
 
 function main() {
-  const { rHome, rscript } = runtimeLayout();
-  for (const requiredPath of [rscript, library, path.join(shinyRoot, "scripts", "check_app.R")]) {
+  const { rHome, executable, scriptArgs } = runtimeLayout();
+  const checkScript = path.join(shinyRoot, "scripts", "check_app.R");
+  for (const requiredPath of [executable, library, checkScript]) {
     if (!existsSync(requiredPath)) {
       throw new Error(`Bundled runtime input is missing: ${requiredPath}`);
     }
   }
 
-  execFileSync(rscript, [path.join(shinyRoot, "scripts", "check_app.R")], {
+  execFileSync(executable, scriptArgs(checkScript), {
     cwd: shinyRoot,
     env: {
       ...process.env,
