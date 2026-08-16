@@ -1,116 +1,184 @@
-# Conjoint Companion Desktop
+# Conjoint Companion Desktop App
 
-Conjoint Companion is a free research tool for designing factorial conjoint experiments and assessing the test-retest reliability of metric conjoint data. It accompanies the workflow introduced by Schueler et al. (2024).
+This repository contains the source code and release tooling for the desktop
+version of the companion app for the paper. It is intended for researchers who
+want to use the publication workflow locally and offline, without installing R
+or uploading research data to a server.
 
-The desktop version runs locally on your computer. You do not need to install R, write code, or upload your research data to a server.
+- Paper: https://doi.org/10.1177/10422587231184071
+- Live web app: https://shiny.drdiscipulus.de/conjoint_app/
+- Shiny app source code: https://github.com/drdiscipulus/conjoint_shiny_app
+- Desktop downloads: https://github.com/drdiscipulus/conjoint_desktop_app/releases
 
-## What can I do with the app?
+The repository is the source and release channel for the desktop app. Portable
+releases include the Shiny application, a compatible R runtime, and the required
+R packages.
 
-You can use Conjoint Companion to:
+## What The App Does
 
-- generate full or fractional factorial designs for conjoint experiments;
-- evaluate the test-retest reliability of conjoint ratings;
-- inspect reliability statistics, regression results, and diagnostic plots; and
-- save designs and results as CSV or Excel files.
+The app supports two conjoint-related workflows:
 
-The app is intended for researchers, instructors, and students working with metric conjoint experiments. For the methodological background and guidance on interpreting the results, please consult the accompanying article.
+1. Generate full and fractional factorial designs for conjoint experiments.
+2. Run the test-retest reliability workflow described in the accompanying paper:
+   *Test-Retest Reliability in Metric Conjoint Experiments: A New Workflow to
+   Evaluate Confidence in Model Results*.
 
-## Download and start
+The desktop version provides the same core workflows as the hosted web app, but
+runs the analysis on your own computer and saves exported files to your normal
+Downloads folder.
 
-Download the version for your computer from the [Releases page](https://github.com/drdiscipulus/conjoint_desktop_app/releases). No installation of R or additional R packages is required.
+## How The App Is Built
 
-### Windows
+- `src-tauri/src/main.rs` contains the Tauri 2 desktop shell. It selects an
+  available localhost port, starts the bundled R process, waits for Shiny, and
+  opens the app in a desktop window.
+- `src-tauri/resources/shiny-app/` contains the desktop application's
+  authoritative Shiny source, including its UI, server logic, statistical
+  helpers, demo data, and tests.
+- `src-tauri/resources/desktop/run_shiny.R` launches the embedded Shiny app on
+  `127.0.0.1` for the current desktop session.
+- `scripts/` contains runtime staging, validation, packaging, signing, and
+  portable-release tooling.
+- `src/` and `index.html` provide the small loading interface shown while the
+  local Shiny process starts.
 
-1. Download the file ending in `windows-x64.zip`.
-2. Right-click the downloaded ZIP file and select **Extract All**.
-3. Open the extracted folder.
-4. Double-click `conjoint_companion_desktop.exe`.
+Release builds use R 4.5.3 and restore the locked R package library before
+packaging it with the app. The desktop build does not download or import the
+Shiny application from another repository at runtime.
 
-Please extract the complete ZIP before starting the app. The Windows build is currently not code-signed, so Windows may display a SmartScreen warning. Only continue if you downloaded the file from this repository's official Releases page.
+## Download And Start
 
-### macOS
+Download the current archive for your platform from the
+[Releases page](https://github.com/drdiscipulus/conjoint_desktop_app/releases).
+You do not need to install R, R packages, Node.js, or Rust to use a release.
 
-The macOS version supports Apple Silicon Macs (M1 or newer).
+### Windows x64
 
-1. Download the file ending in `macos-arm64.zip`.
-2. Double-click the ZIP file to extract it.
-3. Move **Conjoint Companion** to your Applications folder if desired.
-4. Open the app.
+1. Download `Conjoint-Companion-vX.Y.Z-windows-x64.zip`.
+2. Right-click the archive and select **Extract All**.
+3. Open the extracted folder and double-click
+   `conjoint_companion_desktop.exe`.
 
-The distributed macOS app is signed and notarized. If the macOS file is not listed on the Releases page, it is not yet available for that release.
+Extract the complete archive before starting the app. The Windows build is
+currently unsigned, so Windows may show a SmartScreen warning. Only continue if
+you obtained the archive from this repository's official Releases page.
 
-## Your first analysis
+### macOS Apple Silicon
 
-If you would like to explore the app before using your own data, open **Test-Retest Reliability** and download one of the files under **Demo Data**. You can upload that file directly and follow the steps below.
+1. Download `Conjoint-Companion-vX.Y.Z-macos-arm64.zip`.
+2. Double-click the archive to extract it.
+3. Move **Conjoint Companion** to Applications if desired, then open it.
 
-### Generate a factorial design
+The macOS build supports Apple Silicon Macs and is signed and notarized with an
+Apple Developer ID. If a platform archive is not listed for a release, that
+platform is not available for that release. Published checksums are provided in
+`SHA256SUMS.txt`.
 
-1. Open **Factorial Designs** in the navigation bar.
-2. Select **2-Level** if every attribute has two levels, or **N-Level** for another number of levels.
-3. Enter the number of factors and levels and choose a full or fractional design.
-4. Select **Generate design**.
-5. Save the resulting design as CSV or Excel.
+## Build And Run Locally
 
-### Analyze test-retest reliability
+Building from source requires Node.js `^20.19.0` or `>=22.12.0`, npm, a Rust
+toolchain compatible with Tauri 2, R 4.5.3, and the native build tools for your
+platform.
 
-1. Open **Test-Retest Reliability**.
-2. Upload your CSV or Excel data file.
-3. Select **Validate data** and review the validation summary.
-4. Select **Run analysis**.
-5. Review the results in the app or download them as CSV or Excel files.
+```sh
+npm ci
+npm run prepare:runtime
+npm run tauri:dev
+```
 
-Your data file must contain the following columns:
+Runtime staging restores the R packages recorded in the embedded app's
+`renv.lock` file and therefore requires internet access. Platform-specific
+release commands and signing requirements are documented in
+[`docs/RELEASING.md`](docs/RELEASING.md).
 
-| Column | Meaning |
-| --- | --- |
-| `respondent` | Participant identifier |
-| `round` | Measurement occasion, coded as `1` or `2` |
-| `profile` | Conjoint profile identifier |
-| `dv` | Dependent variable, such as a preference rating |
-| `att_*` | At least two attribute columns whose names begin with `att_` |
+## Input Format
 
-The app pairs observations by participant and profile, so the order of rows does not affect the results. It also checks the data before analysis:
+Reliability uploads must be `.csv` or `.xlsx` files containing exactly one
+table. The required columns are:
 
-- Profiles observed in only one of the two rounds are excluded.
-- A participant who is missing an observation for any retained profile is excluded from the complete analysis.
-- Duplicate combinations of participant, round, and profile are rejected.
-- Any exclusions are reported in the validation summary before the analysis is run.
+- `respondent`
+- `round`
+- `profile`
+- `dv`
+- at least two attribute columns whose names begin with `att_`
 
-## Privacy and offline use
+The `round`, `profile`, `dv`, and `att_` columns must be numeric or cleanly
+coercible to numeric. The `round` column must contain exactly rounds `1` and
+`2`.
 
-The desktop app processes your data locally on your computer.
+Current upload limits:
 
-- Your uploaded research data are not sent to GitHub or to the hosted web app.
-- An internet connection is not required after downloading the app.
-- Temporary session files are removed when the app closes.
-- Files you choose to export are saved in your normal Downloads folder.
+- maximum file size: 5 MB
+- maximum rows: 25,000
+- maximum columns: 250
 
-If you prefer not to download the desktop version, the [web version](https://shiny.drdiscipulus.de/conjoint_app/) remains available. Data uploaded to the web version are processed on its server rather than solely on your computer.
+Observations are paired by respondent and profile, not by row position.
+Profiles found in only one round are excluded, and respondents with incomplete
+observations across the retained profiles are excluded from both rounds. The
+validation summary reports these exclusions before analysis; duplicate
+respondent-round-profile combinations are rejected.
 
-## Troubleshooting and feedback
+## Outputs
 
-If the app does not start on Windows, first confirm that you extracted the complete ZIP rather than opening the executable inside the ZIP preview. On macOS, use the signed and notarized build provided on the Releases page.
+The factorial-design workflows can export generated designs as CSV or XLSX
+files.
 
-For reproducible errors or installation problems, please [open a GitHub issue](https://github.com/drdiscipulus/conjoint_desktop_app/issues). Include your operating system, the app version, what you were trying to do, and the full error message if one was shown. This is academic companion software, and support is provided on a best-effort basis.
+After a successful reliability analysis, the app can export:
+
+- an XLSX workbook containing the `Reliability table`, `Slope Difference`, and
+  `Pooled Regression` sheets;
+- a ZIP archive containing the same three result tables as separate CSV files.
+
+Plots can be downloaded from the Plotly toolbar. Desktop downloads are routed
+to the user's normal Downloads folder.
+
+## Privacy And Data Handling
+
+The desktop app binds its Shiny process only to `127.0.0.1` and processes data
+locally on your computer. Uploaded data are not sent to GitHub, the hosted web
+app, or another remote service.
+
+Uploaded data and generated result files are handled in a session-specific
+temporary directory. Session files are removed when the session ends, and the
+local R process is stopped when the desktop app closes. After downloading the
+release, the app can be used without an internet connection.
+
+## Maintenance
+
+This repository is maintained occasionally and conservatively as publication
+companion software, not as an actively developed product. The statistical
+workflow should remain stable unless a specific bug is identified.
+
+Contributors can run the full source checks with:
+
+```sh
+npm ci
+npm run check
+```
+
+Architecture, maintenance, and release details are available in
+[`ARCHITECTURE.md`](ARCHITECTURE.md),
+[`docs/MAINTENANCE.md`](docs/MAINTENANCE.md), and
+[`docs/RELEASING.md`](docs/RELEASING.md). Reproducible problems can be reported
+through [GitHub Issues](https://github.com/drdiscipulus/conjoint_desktop_app/issues);
+support is provided on a best-effort basis.
 
 ## Citation
 
-If you use Conjoint Companion in research or teaching, please cite:
+If you use the app, source code, or workflow in research or teaching, please
+cite the article:
 
-Schueler, J., Anderson, B. S., Murnieks, C. Y., Baum, M., & Kuesshauer, A. (2024). Test-Retest Reliability in Metric Conjoint Experiments: A New Workflow to Evaluate Confidence in Model Results. *Entrepreneurship Theory and Practice, 48*(2), 742–757. https://doi.org/10.1177/10422587231184071
+Schueler, J., Anderson, B. S., Murnieks, C. Y., Baum, M., & Kuesshauer, A.
+(2024). Test-Retest Reliability in Metric Conjoint Experiments: A New Workflow
+to Evaluate Confidence in Model Results. *Entrepreneurship Theory and Practice,
+48*(2), 742-757. https://doi.org/10.1177/10422587231184071
 
-Machine-readable citation metadata are available in [CITATION.cff](CITATION.cff).
-
-## Technical documentation
-
-The desktop application packages the Shiny app and its R environment in a Tauri shell. These documents are intended for contributors and maintainers:
-
-- [Architecture](ARCHITECTURE.md)
-- [Maintenance guide](docs/MAINTENANCE.md)
-- [Release and packaging guide](docs/RELEASING.md)
-- [Security and privacy notes](src-tauri/resources/shiny-app/docs/SECURITY_AND_PRIVACY.md)
-- [Regression testing](src-tauri/resources/shiny-app/docs/REGRESSION_TESTING.md)
+Machine-readable citation metadata are available in
+[`CITATION.cff`](CITATION.cff).
 
 ## License
 
-Conjoint Companion Desktop is open-source software licensed under the [GNU General Public License v3.0](LICENSE).
+This project is licensed under the GNU General Public License v3.0. See
+[`LICENSE`](LICENSE).
+
+Conjoint Companion Desktop by Jens Schueler.
