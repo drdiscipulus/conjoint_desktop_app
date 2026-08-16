@@ -18,7 +18,6 @@ Conjoint Companion is intentionally kept as a plain Shiny app rather than an R p
 - `custom_corr_plot.R`: adapted DoE correlation helper for the two-level heatmap.
 - `tests/testthat/`: regression and helper tests.
 - `docs/`: user-facing and maintainer-facing documentation.
-- `dev/`: exploratory scripts and reports; not required at runtime.
 
 ## Helper Files
 
@@ -55,11 +54,11 @@ The statistical workflow should remain stable unless a test proves an existing b
 Result exports are intentionally server-generated from session data:
 
 - Excel workbook: reliability table, slope difference, pooled regression.
-- CSV zip: same tables as separate CSV files plus model-fit text.
+- CSV ZIP: the same three tables as separate CSV files.
 
 ## Source-Based Structure
 
-The app intentionally uses sourced files instead of Shiny modules or an R package. This keeps deployment simple on a private Shiny server and avoids changing the publication-tied runtime shape. Treat the source order in `app.R` and `scripts/check_app.R` as part of the app contract.
+The app intentionally uses sourced files instead of Shiny modules or an R package. This keeps the bundled desktop runtime simple and avoids changing the publication-tied application shape. Treat the source order in `app.R` and `scripts/check_app.R` as part of the app contract.
 
 If a future change makes the server files difficult to maintain, prefer splitting one tab into smaller sourced files before converting the whole project to modules or a package.
 
@@ -71,12 +70,11 @@ If a future change makes the server files difficult to maintain, prefer splittin
 
 ## Browser Smoke Tests
 
-`scripts/ui_smoke_test.R` provides an optional browser-level smoke test with `shinytest2`. It is not part of the default check pipeline because `shinytest2` is a heavier optional dependency. Run it manually after UI-focused changes when `shinytest2` is installed.
+`scripts/ui_smoke_test.R` provides an optional browser-level smoke test with `shinytest2`. It is not part of the default check pipeline because `shinytest2` is a heavier optional dependency. From the repository root, run `Rscript src-tauri/resources/shiny-app/scripts/ui_smoke_test.R` after UI-focused changes when `shinytest2` is installed.
 
 ## Safe Maintenance Pattern
 
 1. Make small, behavior-preserving changes.
-2. Run `Rscript scripts/check_app.R`.
+2. From the repository root, run `Rscript src-tauri/resources/shiny-app/scripts/check_app.R`.
 3. If statistical output changes, update fixtures only intentionally and document why.
 4. Avoid changing formulas, model definitions, or output table structures without adding tests first.
-5. Treat files in `dev/` as exploratory, not production dependencies.

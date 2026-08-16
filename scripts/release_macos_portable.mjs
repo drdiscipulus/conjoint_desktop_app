@@ -26,7 +26,20 @@ const appPath = path.join(
   "Conjoint Companion.app"
 );
 const frameworkPath = path.join(appPath, "Contents", "Frameworks", "R.framework");
-const entitlementsPath = path.join(repoRoot, "src-tauri", "Entitlements.plist");
+const allowedLocalEnvNames = new Set([
+  "APPLE_SIGNING_IDENTITY",
+  "APPLE_NOTARY_PROFILE"
+]);
+const appleReleaseVariableNames = [
+  "APPLE_SIGNING_IDENTITY",
+  "APPLE_NOTARY_PROFILE",
+  "APPLE_ID",
+  "APPLE_PASSWORD",
+  "APPLE_TEAM_ID",
+  "APPLE_API_ISSUER",
+  "APPLE_API_KEY",
+  "APPLE_API_KEY_PATH"
+];
 
 function parseEnvLine(line) {
   const trimmed = line.trim();
@@ -37,6 +50,12 @@ function parseEnvLine(line) {
   const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
   if (!match) {
     throw new Error(`Invalid .env.release.local line: ${line}`);
+  }
+  if (!allowedLocalEnvNames.has(match[1])) {
+    throw new Error(
+      `.env.release.local may contain only ${[...allowedLocalEnvNames].join(" and ")}. ` +
+      "Store notarization credentials in the macOS login keychain."
+    );
   }
 
   let value = match[2].trim();
@@ -64,18 +83,20 @@ function loadLocalEnv() {
 // Explicit shell variables take precedence over values in the ignored file.
 const releaseEnv = { ...loadLocalEnv(), ...process.env };
 
-function signingOnlyEnv() {
+function buildEnv() {
   const nextEnv = { ...releaseEnv };
-  for (const name of [
-    "APPLE_ID",
-    "APPLE_PASSWORD",
-    "APPLE_TEAM_ID",
-    "APPLE_NOTARY_PROFILE",
-    "APPLE_API_ISSUER",
-    "APPLE_API_KEY",
-    "APPLE_API_KEY_PATH"
-  ]) {
+  for (const name of appleReleaseVariableNames) {
     delete nextEnv[name];
+  }
+  return nextEnv;
+}
+
+function preflightEnv() {
+  const nextEnv = buildEnv();
+  for (const name of allowedLocalEnvNames) {
+    if (releaseEnv[name]) {
+      nextEnv[name] = releaseEnv[name];
+    }
   }
   return nextEnv;
 }
@@ -83,7 +104,7 @@ function signingOnlyEnv() {
 function run(command, args, options = {}) {
   execFileSync(command, args, {
     cwd: repoRoot,
-    env: releaseEnv,
+    env: buildEnv(),
     stdio: "inherit",
     ...options
   });
@@ -124,9 +145,6 @@ function signNativePath(targetPath) {
     "runtime",
     "--timestamp",
   ];
-  if (targetPath.endsWith(path.join("Resources", "bin", "exec", "R"))) {
-    args.push("--entitlements", entitlementsPath);
-  }
   args.push("--sign", releaseEnv.APPLE_SIGNING_IDENTITY, targetPath);
   run("codesign", args);
 }
@@ -151,8 +169,6 @@ function signBundledNativeCode() {
     "--options",
     "runtime",
     "--timestamp",
-    "--entitlements",
-    entitlementsPath,
     "--sign",
     releaseEnv.APPLE_SIGNING_IDENTITY,
     appPath
@@ -161,40 +177,12 @@ function signBundledNativeCode() {
 }
 
 function notarizationArgs(archivePath) {
-  if (releaseEnv.APPLE_NOTARY_PROFILE) {
-    return [
-      "notarytool",
-      "submit",
-      archivePath,
-      "--keychain-profile",
-      releaseEnv.APPLE_NOTARY_PROFILE,
-      "--wait"
-    ];
-  }
-  if (releaseEnv.APPLE_ID && releaseEnv.APPLE_PASSWORD && releaseEnv.APPLE_TEAM_ID) {
-    return [
-      "notarytool",
-      "submit",
-      archivePath,
-      "--apple-id",
-      releaseEnv.APPLE_ID,
-      "--password",
-      releaseEnv.APPLE_PASSWORD,
-      "--team-id",
-      releaseEnv.APPLE_TEAM_ID,
-      "--wait"
-    ];
-  }
   return [
     "notarytool",
     "submit",
     archivePath,
-    "--key",
-    releaseEnv.APPLE_API_KEY_PATH,
-    "--key-id",
-    releaseEnv.APPLE_API_KEY,
-    "--issuer",
-    releaseEnv.APPLE_API_ISSUER,
+    "--keychain-profile",
+    releaseEnv.APPLE_NOTARY_PROFILE,
     "--wait"
   ];
 }
@@ -222,15 +210,14 @@ function appSize() {
 }
 
 function main() {
-  run(process.execPath, ["scripts/release_preflight.mjs", "macos"]);
+  run(process.execPath, ["scripts/release_preflight.mjs", "macos"], { env: preflightEnv() });
   runNpmScript("prepare:runtime");
   runNpmScript("check");
   runNpmScript("smoke:runtime");
   runNpmScript("clean:release-output");
   run(
     "npx",
-    ["tauri", "build", "--bundles", "app", "--config", "src-tauri/tauri.macos.conf.json"],
-    { env: signingOnlyEnv() }
+    ["tauri", "build", "--bundles", "app", "--config", "src-tauri/tauri.macos.conf.json"]
   );
   signBundledNativeCode();
   notarizeAndStaple();

@@ -67,15 +67,9 @@ function checkMacSigning() {
   if (!process.env.APPLE_SIGNING_IDENTITY) {
     throw new Error("APPLE_SIGNING_IDENTITY must be set for a signed macOS release.");
   }
-  const keychainProfile = Boolean(process.env.APPLE_NOTARY_PROFILE);
-  const appleIdCredentials = ["APPLE_ID", "APPLE_PASSWORD", "APPLE_TEAM_ID"]
-    .every((variable) => Boolean(process.env[variable]));
-  const apiCredentials = ["APPLE_API_ISSUER", "APPLE_API_KEY", "APPLE_API_KEY_PATH"]
-    .every((variable) => Boolean(process.env[variable]));
-  if (!keychainProfile && !appleIdCredentials && !apiCredentials) {
+  if (!process.env.APPLE_NOTARY_PROFILE) {
     throw new Error(
-      "Notarization requires APPLE_NOTARY_PROFILE; APPLE_ID, APPLE_PASSWORD, and APPLE_TEAM_ID; " +
-      "or APPLE_API_ISSUER, APPLE_API_KEY, and APPLE_API_KEY_PATH."
+      "APPLE_NOTARY_PROFILE must name notarization credentials stored in the macOS login keychain."
     );
   }
   const identities = run("security", ["find-identity", "-v", "-p", "codesigning"]);

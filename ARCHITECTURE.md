@@ -36,6 +36,8 @@ Reliability data are paired by `respondent + profile`, never by row position. Th
 
 The Shiny process binds only to `127.0.0.1`. Tauri navigation and download handling accept only the exact localhost port started for the current session. External HTTP(S) pages do not receive desktop capabilities, and the loader page uses a restrictive content security policy.
 
+The macOS build keeps hardened-runtime library validation enabled. Every bundled Mach-O file is signed with the release identity, and bundle verification rejects an app or bundled R executable that disables library validation.
+
 ## Release Artifacts
 
 - `npm run release:windows` creates an unsigned Windows x64 portable ZIP.

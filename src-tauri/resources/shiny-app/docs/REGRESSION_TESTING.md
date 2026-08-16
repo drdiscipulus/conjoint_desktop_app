@@ -5,10 +5,10 @@ The reliability workflow is protected by baseline fixtures generated from
 
 ## Generate Baseline Fixtures
 
-Run this only when intentionally updating the protected baseline:
+Run this from the repository root only when intentionally updating the protected baseline:
 
 ```sh
-Rscript scripts/generate_baseline.R
+Rscript src-tauri/resources/shiny-app/scripts/generate_baseline.R
 ```
 
 The script writes compact fixtures to `tests/fixtures/`:
@@ -20,8 +20,10 @@ The script writes compact fixtures to `tests/fixtures/`:
 
 ## Run Checks
 
+From the repository root:
+
 ```sh
-Rscript scripts/check_app.R
+Rscript src-tauri/resources/shiny-app/scripts/check_app.R
 ```
 
 The regression tests compare:

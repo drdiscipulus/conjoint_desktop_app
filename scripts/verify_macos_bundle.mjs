@@ -104,6 +104,27 @@ function verifyBundledR() {
   }
 }
 
+function verifyRestrictedEntitlements() {
+  const rExecutable = path.join(
+    appPath,
+    "Contents",
+    "Frameworks",
+    "R.framework",
+    "Resources",
+    "bin",
+    "exec",
+    "R"
+  );
+  for (const targetPath of [appPath, rExecutable]) {
+    const entitlements = run("codesign", ["--display", "--entitlements", ":-", targetPath]);
+    if (entitlements.includes("com.apple.security.cs.disable-library-validation")) {
+      throw new Error(
+        `Library validation is disabled for ${path.relative(appPath, targetPath) || "the app bundle"}.`
+      );
+    }
+  }
+}
+
 function main() {
   if (process.platform !== "darwin" || process.arch !== "arm64") {
     throw new Error("macOS bundle verification must run on Apple Silicon.");
@@ -114,6 +135,7 @@ function main() {
   verifyNoSystemRReferences();
   verifyBundledR();
   run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", appPath]);
+  verifyRestrictedEntitlements();
   run("spctl", ["--assess", "--type", "execute", "--verbose=2", appPath]);
   run("xcrun", ["stapler", "validate", appPath]);
   console.log(`Verified signed, notarized, self-contained app: ${appPath}`);
